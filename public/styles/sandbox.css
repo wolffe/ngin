@@ -1,0 +1,160 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0e1116;
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+}
+
+#canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#canvas.look-drag {
+  cursor: grab;
+}
+
+#canvas.look-drag:active {
+  cursor: grabbing;
+}
+
+#boot {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(180deg, rgba(224, 122, 61, 0.07) 0%, transparent 42%),
+    #0e1116;
+  color: #e8eef2;
+  transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+
+#boot.is-done {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.boot-inner {
+  width: min(22rem, calc(100% - 2.4rem));
+}
+
+.boot-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1.1rem;
+}
+
+.boot-word {
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: -0.06em;
+}
+
+.boot-badge {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #e07a3d;
+  border: 1px solid color-mix(in srgb, #e07a3d 55%, #2a333e);
+  padding: 0.12rem 0.4rem;
+  border-radius: 4px;
+}
+
+.boot-status {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.78rem;
+  color: #8b97a3;
+  margin-bottom: 0.75rem;
+  min-height: 1.2em;
+}
+
+.boot-bar {
+  height: 3px;
+  background: #2a333e;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.boot-bar i {
+  display: block;
+  height: 100%;
+  width: 8%;
+  background: #e07a3d;
+  border-radius: 2px;
+  transition: width 0.2s ease;
+}
+
+#hint {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.55);
+  color: #ccc;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  pointer-events: none;
+  max-width: min(92vw, 52rem);
+  text-align: center;
+  line-height: 1.35;
+}
+
+#prompt {
+  position: fixed;
+  top: 42%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 3px #000, 0 0 12px #000;
+  pointer-events: none;
+}
+
+#prompt b {
+  display: inline-block;
+  background: rgba(0, 0, 0, 0.72);
+  padding: 0.12rem 0.42rem;
+  border-radius: 3px;
+  margin-right: 0.28rem;
+}
+
+#inventory {
+  position: fixed;
+  bottom: 3.2rem;
+  left: 1rem;
+  background: rgba(0, 0, 0, 0.55);
+  color: #ddd;
+  font-size: 0.8rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  pointer-events: none;
+  min-width: 9rem;
+  line-height: 1.45;
+}
+
+#inventory .inv-title {
+  color: #fff;
+  margin-bottom: 0.2rem;
+}
+
+#inventory .inv-hint {
+  color: #888;
+  margin-top: 0.3rem;
+  font-size: 0.72rem;
+}

@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NGIN - Handbook</title>
+  <meta name="description" content="NGIN creator handbook: prompt existing walking, vehicle, physics, water, and graphics modules. Technical references for AI-assisted game development." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,650;12..96,700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../public/styles/site.css" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script type="module" src="./navigation.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to handbook</a>
+  <div class="wrap">
+    <header class="top">
+      <a class="brand" href="../index.html">
+        <span class="logo">NGIN</span>
+        <span class="badge">alpha</span>
+        <span class="tag">AI-first game engine for Three.js</span>
+      </a>
+      <nav class="top-links" aria-label="Main navigation">
+        <a href="../game.html">Sandbox</a>
+        <a href="./README.md">Technical notes</a>
+      </nav>
+    </header>
+
+    <div class="layout">
+      <aside class="rail">
+        <nav aria-label="Handbook modules">
+        <h2>Modules</h2>
+        <ul class="module-list">
+          <li><a class="now" href="#start">Start here</a></li>
+          <li><a class="now" href="#walking">Walking</a></li>
+          <li><a class="now" href="#actions">Actions</a></li>
+          <li><a class="now" href="#carry">Carry</a></li>
+          <li><a class="now" href="#inventory">Inventory</a></li>
+          <li><a class="now" href="#driving">Driving</a></li>
+          <li><a class="now" href="#towing">Towing</a></li>
+          <li><a class="now" href="#boats">Boats</a></li>
+          <li><a class="now" href="#physics">Physics</a></li>
+          <li><a class="now" href="#glb">GLB models</a></li>
+          <li><a class="now" href="#water">Water</a></li>
+          <li><a class="now" href="#daynight">Day / night</a></li>
+          <li><a class="now" href="#pbr">Painterly textures</a></li>
+          <li><a class="now" href="#lighting">Lighting</a></li>
+          <li><a class="now" href="#particles">Particles</a></li>
+          <li><a class="now" href="#weather">Snow &amp; rain</a></li>
+        </ul>
+        </nav>
+        <div class="rail-reference">
+          <a href="./new-game.md">New-game guide</a>
+          <a href="./ai-prompt.md">AI prompt</a>
+          <a href="./README.md">API &amp; architecture</a>
+        </div>
+      </aside>
+
+      <main class="article" id="content">
+        <section class="intro" id="start">
+          <p class="handbook-label">NGIN / Creator handbook</p>
+          <h1>Start here</h1>
+          <p class="lede">
+            NGIN is alpha and in active development. It is a Three.js WebGPU engine. You describe a game. The AI reuses these modules instead of inventing walking, cars, or water from scratch.
+          </p>
+          <p>
+            Play the <a href="../game.html">sandbox</a> to feel the defaults. Read a module when you need it. Copy a prompt example. Do not ask the AI to rewrite a module that already exists.
+          </p>
+          <p>
+            Open NGIN in your AI coding tool and read <a href="../AGENTS.md">the agent rules</a>.
+            Copy <a href="../games/template/">the starter folder</a> into your own game folder,
+            with its own launch page. The engine, sandbox, starter and other games are protected
+            during game development. The <a href="./new-game.md">new-game guide</a> covers the
+            required before/after change check: it detects edits, rather than locking files.
+          </p>
+          <div class="intro-references">
+            <a href="./new-game.md">New-game guide</a>
+            <a href="./ai-prompt.md">AI prompt</a>
+            <a href="./README.md">Technical notes</a>
+          </div>
+        </section>
+
+        <h1 id="walking">Walking</h1>
+        <p class="lede">
+          You describe the game. The AI uses NGIN. Walking is already built: a player who moves, looks, jumps, and crouches on solid ground. Do not ask the AI to invent walking from scratch.
+        </p>
+
+        <section>
+          <h2>What you get</h2>
+          <p>
+            A person in the world. They walk with <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>, run with <kbd>Shift</kbd>, crouch with <kbd>C</kbd>, jump with <kbd>Space</kbd>, switch first / third person with <kbd>V</kbd>, and toggle a flashlight with <kbd>L</kbd> (on foot only).
+          </p>
+          <div class="keys">
+            <div class="key"><kbd>WASD</kbd> move</div>
+            <div class="key"><kbd>Shift</kbd> run</div>
+            <div class="key"><kbd>C</kbd> crouch</div>
+            <div class="key"><kbd>Space</kbd> jump</div>
+            <div class="key"><kbd>V</kbd> first / third person</div>
+            <div class="key"><kbd>L</kbd> flashlight (on foot)</div>
+            <div class="key">scroll zoom in third person</div>
+            <div class="key">drag or click to look</div>
+          </div>
+          <p>
+            Look is either drag (hold the left mouse button) or capture (click the canvas, mouse locks until <kbd>Esc</kbd>). Pick one in your prompt.
+          </p>
+        </section>
+
+        <section>
+          <h2>How it feels</h2>
+          <p>
+            Every NGIN game uses the same body. Speeds and heights stay fixed so walking does not turn into a pile of special cases.
+          </p>
+          <div class="feel">
+            <div><b>4</b><span>walk</span></div>
+            <div><b>7</b><span>run</span></div>
+            <div><b>2</b><span>crouch</span></div>
+            <div><b>8</b><span>jump</span></div>
+          </div>
+          <p>
+            Standing is 1.8 m. Crouch is 1.0 m. In third person the body turns while moving and keeps its last facing when idle. Crouch bends the knees. The third-person camera stays at standing height and does not dip.
+          </p>
+          <p>
+            First person looks through the eyes and moves where the camera faces. Third person orbits behind the character.
+          </p>
+        </section>
+
+        <section>
+          <h2>The character</h2>
+          <div class="row">
+            <div>
+              <p>
+                The player is a block figure: head, torso, arms, legs. Limbs swing when they walk. This is the NGIN person. Keep it.
+              </p>
+              <p>
+                Later you will be able to ask for colours, clothes, and attachments (backpack, cap, boots, cape). That is not this module. Do not ask the AI to build a clothing system yet, and do not replace the player with a <code>GLB</code> model.
+              </p>
+            </div>
+            <div class="r6" aria-hidden="true">
+              <div class="r6-head"></div>
+              <div class="r6-mid">
+                <div class="r6-arm"></div>
+                <div class="r6-torso"></div>
+                <div class="r6-arm"></div>
+              </div>
+              <div class="r6-legs">
+                <div class="r6-leg"></div>
+                <div class="r6-leg"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>What to ask for</h2>
+          <ul class="ask">
+            <li>Start in first person or third person</li>
+            <li>Always run, without holding Shift</li>
+            <li>Invert mouse, field of view, look sensitivity</li>
+            <li>Drag look or mouse-capture look</li>
+            <li>Where the player spawns</li>
+            <li>Floors, ramps, stairs, boxes, and walls they can walk on or bump into</li>
+            <li>A trampoline that launches the player</li>
+            <li>A ground fan that blows up, or turned on its side to blow sideways</li>
+          </ul>
+          <h3>What not to ask for</h3>
+          <ul class="dont">
+            <li>Custom walking, sliding, or “better” physics for the player</li>
+            <li>A different character controller or a skinned player model</li>
+            <li>Clothes, hats, backpacks, or recolors (later)</li>
+            <li>A world with no floor collider (they will fall through)</li>
+          </ul>
+          <p class="note">
+            <strong>Ground rule.</strong> Every solid thing the player stands on or runs into needs a matching collider. Say that in the prompt. The AI already knows how to pair a mesh with a collider in NGIN.
+          </p>
+        </section>
+
+        <section>
+          <h2>Prompt examples</h2>
+          <p>Paste these as-is, then add your level idea.</p>
+          <div class="prompts">
+            <p class="prompt">Use NGIN walking. Third person, always run, drag to look. A small courtyard with stone blocks, one ramp, and a floor I cannot fall through. Do not rewrite walking.</p>
+            <p class="prompt">Use NGIN walking. First person, invert mouse, capture look. Quiet walk, hold Shift to run. A 40 metre grass field with a few boxes to jump on. Press V to switch view.</p>
+            <p class="prompt">Use NGIN walking. Keep the block character. Spawn on a flat floor with stairs I can walk up. Third person, scroll to zoom.</p>
+            <p class="prompt">Use NGIN walking. A trampoline and an upward ground fan, plus one fan on its side that pushes me horizontally. Do not rewrite walking.</p>
+          </div>
+        </section>
+
+        <h1 id="actions">Actions</h1>
+        <p class="lede">
+          You look at a thing and press a key. The prompt in the middle of the screen tells you which key. Do not ask the AI to invent a second interaction system.
+        </p>
+
+        <section>
+          <h2>What you get</h2>
+          <p>
+            A look-at prompt. If you are aiming at something usable, the key and the action appear. If you are not looking at it, you cannot use it.
+          </p>
+          <div class="keys">
+            <div class="key"><kbd>E</kbd> enter or exit a vehicle or boat</div>
+            <div class="key"><kbd>F</kbd> pick up / drop</div>
+            <div class="key"><kbd>G</kbd> stow into inventory</div>
+          </div>
+          <p>
+            <kbd>E</kbd> is for seats. <kbd>F</kbd> is for things you can hold. That split is the NGIN rule. Do not make <kbd>E</kbd> pick things up.
+          </p>
+        </section>
+
+        <section>
+          <h2>What to ask for</h2>
+          <ul class="ask">
+            <li>A door, crate, vehicle, or switch that shows a prompt when looked at</li>
+            <li>Different keys for different jobs (enter vs pick up)</li>
+            <li>Prompt text in plain language (“Carry crate”, “Enter car”)</li>
+          </ul>
+          <h3>What not to ask for</h3>
+          <ul class="dont">
+            <li>Use-on-touch, use-in-radius, or use-the-nearest-object-behind-you</li>
+            <li>Hardcoded keys inside each object (the action map already owns the keys)</li>
+            <li>A custom raycaster or click-to-select UI for world objects</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Prompt examples</h2>
+          <div class="prompts">
+            <p class="prompt">Use NGIN actions. Look at a crate to see F Carry and G Stow. Look at a car to see E Enter. Do not add a radius pickup.</p>
+          </div>
+        </section>
+
+        <h1 id="carry">Carry</h1>
+        <p class="lede">
+          The held item stays in the world, in front of you, and still bumps walls. Scroll moves it closer or farther. Right-mouse drag rotates it. Same idea as Drive Beyond Horizons and The Long Drive.
+        </p>
+
+        <section>
+          <h2>What you get</h2>
+          <p>
+            Look at an item and press <kbd>F</kbd>. It lifts to the hold point: in first person, along your look; in third person, in front of the character. Press <kbd>F</kbd> again to drop.
+          </p>
+          <p>
+            Carry is opt-in. A dynamic body can be pushed around; it is not carryable until you (or the AI) register a look-at <kbd>F</kbd> action that grabs it. Green cubes and marbles have physics and cannot be picked up. Orange crates can.
+          </p>
+          <div class="keys">
+            <div class="key"><kbd>F</kbd> pick up / drop</div>
+            <div class="key">scroll closer / farther</div>
+            <div class="key">RMB drag rotate</div>
+            <div class="key"><kbd>G</kbd> stow from the hands</div>
+          </div>
+          <p>
+            While you hold it, looking around with the left mouse still looks. Right mouse only twists the item. Scroll does not spin it. Entering a vehicle drops it.
+          </p>
+        </section>
+
+        <section>
+          <h2>What to ask for</h2>
+          <ul class="ask">
+            <li>Crates, cans, boxes, or other loose props you can carry</li>
+            <li>A hold that you can push into a wall (it should stop, not clip)</li>
+            <li>Look-at pickup on that object (F), not a flag on every physics body</li>
+          </ul>
+          <h3>What not to ask for</h3>
+          <ul class="dont">
+            <li>An <code>is_carryable</code> flag on rigid bodies. Physics only means it can be shoved. Carry is a separate look-at action.</li>
+            <li>Gluing the item to the camera or hiding it while carried</li>
+            <li>Scroll to rotate, or left-click to rotate</li>
+            <li>A second carry button besides F</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Prompt examples</h2>
+          <div class="prompts">
+            <p class="prompt">Use NGIN carry. Orange crates I can pick up with F. Scroll moves the crate in and out. Right mouse drag rotates it. Drop with F. Do not rewrite carry.</p>
+          </div>
+        </section>
+
+        <h1 id="inventory">Inventory</h1>
+        <p class="lede">
+          Stow makes the item leave the world and sit in a pocket. Numbers put it back in front of you.
+        </p>
+
+        <section>
+          <h2>What you get</h2>
+          <p>
+            Look at an item and press <kbd>G</kbd>, or press <kbd>G</kbd> while carrying it. The mesh disappears. A small list shows what you have. Press <kbd>1</kbd> through <kbd>9</kbd> to drop that slot at the hold point.
+          </p>
+          <div class="keys">
+            <div class="key"><kbd>G</kbd> stow (look or while holding)</div>
+            <div class="key"><kbd>1</kbd>–<kbd>9</kbd> drop that slot</div>
+          </div>
+        </section>
+
+        <section>
+          <h2>What to ask for</h2>
+          <ul class="ask">
+            <li>Pickups that vanish into inventory</li>
+            <li>A named slot list (crate, can, battery)</li>
+            <li>Drop back into the world with 1–9</li>
+          </ul>
+          <h3>What not to ask for</h3>
+          <ul class="dont">
+            <li>A grid backpack UI, stacking, or weight limits (not this module)</li>
+            <li>Items that stay visible in the world after stow</li>
+            <li>A clothing / equipment paper doll (later)</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Prompt examples</h2>
+          <div class="prompts">
+            <p class="prompt">Use NGIN inventory. I can G stow crates so they disappear, then press 1 to drop one in front of me. Keep the pocket list. Do not build a backpack UI.</p>
+          </div>
+        </section>
+
+        <h1 id="driving">Driving</h1>
+        <p class="lede">
+          Look at a vehicle, press <kbd>E</kbd>, drive with <kbd>WASD</kbd>. One seat at a time. Do not ask the AI to write a second car controller.
+        </p>
+
+        <section>
+          <h2>What you get</h2>
+          <p>
+            Four kinds: car, truck, bus, Kenworth. They share the same driving feel (gears, 4WD, handbrake). Size, mass, and torque change per kind. Tires kick up dust when you move. <kbd>L</kbd> toggles headlights while seated. Braking or handbrake brightens the red tails on its own.
+          </p>
+          <div class="keys">
+            <div class="key"><kbd>E</kbd> enter / exit (look at it)</div>
+            <div class="key"><kbd>W</kbd> / <kbd>S</kbd> go / reverse</div>
+            <div class="key"><kbd>A</kbd> / <kbd>D</kbd> steer</div>
+            <div class="key"><kbd>Space</kbd> handbrake</div>
+            <div class="key"><kbd>L</kbd> headlights</div>
+          </div>
+          <p>
+            Opposite of travel only brakes. After a stop, release the key and press again to change direction. Entering ignores leftover walk keys until you let go of W/S.
+          </p>
+        </section>
+
+        <section>
+          <h2>What to ask for</h2>
+          <ul class="ask">
+            <li>A car, truck, bus, or Kenworth in the level</li>
+            <li>Look-at enter with E (pass the interaction system; do not use a radius poll)</li>
+          </ul>
+          <h3>What not to ask for</h3>
+          <ul class="dont">
+            <li>A custom vehicle physics stack or arcade hover-car</li>
+            <li>Driving two vehicles at once</li>
+            <li>Replacing the block vehicles with GLB</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Prompt examples</h2>
+          <div class="prompts">
+            <p class="prompt">Use NGIN driving. A car and a truck I enter with E by looking at them. WASD to drive, Space handbrake. Do not rewrite the vehicle controller.</p>
+          </div>
+        </section>
+
+        <h1 id="towing">Towing</h1>
+        <p class="lede">
+          The Kenworth comes with a box trailer on a kingpin hitch. That is the NGIN tow. Do not invent a second hitch.
+        </p>
+
+        <section>
+          <h2>What you get</h2>
+          <p>
+            Cab and trailer are two wheeled bodies. The trailer has no engine. It yaws on the hitch. Cab and trailer do not collide with each other so the hitch does not weld them into one rigid lump.
+          </p>
+        </section>
+
+        <section>
+          <h2>What to ask for</h2>
+          <ul class="ask">
+            <li>A Kenworth with its trailer in the level</li>
+          </ul>
+          <h3>What not to ask for</h3>
+          <ul class="dont">
+            <li>Hooking the car or truck to a trailer (not this module)</li>
+            <li>Detach / attach hitch gameplay (later)</li>
+            <li>A rope, chain, or spring tow</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Prompt examples</h2>
+          <div class="prompts">
+            <p class="prompt">Use NGIN towing. Spawn a Kenworth with its trailer. I drive the cab with E. Do not add a custom hitch.</p>
+          </div>
+        </section>
+
+        <h1 id="boats">Boats</h1>
+        <p class="lede">
+          Same seat as cars: look, <kbd>E</kbd>, then <kbd>WASD</kbd>. The hull floats in a water volume. Two kinds: fishing boat and speedboat.
+        </p>
+
+        <section>
+          <h2>What you get</h2>
+          <p>
+            Fishing boat is slow and damped. Speedboat has more thrust and less drag. Both need water under them (a pool or a water volume). Without water they sit on the ground. Moving hulls throw spray; more speed, more spray.
+          </p>
+          <div class="keys">
+            <div class="key"><kbd>E</kbd> enter / exit</div>
+            <div class="key"><kbd>W</kbd> / <kbd>S</kbd> thrust</div>
+            <div class="key"><kbd>A</kbd> / <kbd>D</kbd> yaw</div>
+          </div>
+        </section>
+
+        <section>
+          <h2>What to ask for</h2>
+          <ul class="ask">
+            <li>A fishing boat or a speedboat on a pool or lake</li>
+            <li>A water volume so the hull actually floats</li>
+          </ul>
+          <h3>What not to ask for</h3>
+          <ul class="dont">
+            <li>Locking the boat to a Y height instead of buoyancy</li>
+            <li>A third boat physics system</li>
+            <li>Towing a trailer behind a boat</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Prompt examples</h2>
+          <div class="prompts">
+            <p class="prompt">Use NGIN boats. A pool with a fishing boat and a speedboat. E to drive them. Keep buoyancy. Do not rewrite boat physics.</p>
+          </div>
+        </section>
+
+        <h1 id="physics">Physics</h1>
+        <p class="lede">
+          Solid things have colliders. Pushable things are dynamic boxes or spheres. The player walks with the built-in character. Do not ask the AI to write a second physics engine.
+        </p>
+
+        <section>
+          <h2>What you get</h2>
+          <p>
+            Static boxes, convex hulls, and triangle meshes for scenery. Dynamic boxes and spheres you can shove. Water volumes that float anything that enters them. A trampoline bounce pad. A fan that pushes the player and loose objects.
+          </p>
+        </section>
+
+        <section>
+          <h2>What to ask for</h2>
+          <ul class="ask">
+            <li>Floors, walls, ramps, and props with colliders that match the mesh</li>
+            <li>Crates, balls, or other shoveable objects</li>
+            <li>A trampoline or a fan already in NGIN</li>
+          </ul>
+          <h3>What not to ask for</h3>
+          <ul class="dont">
+            <li>A custom character controller or a second Jolt world</li>
+            <li>Invisible shrink hacks on colliders. If the mesh is the shape, use a mesh collider</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Prompt examples</h2>
+          <div class="prompts">
+            <p class="prompt">Use NGIN physics. A floor, some static boxes, and a few pushable crates. Do not rewrite the player collider.</p>
+          </div>
+        </section>
+
+        <h1 id="glb">GLB models</h1>
+        <p class="lede">
+          Load a GLB, clone it into the world, give it a collider. It can be scenery or a thing you pick up. Do not replace the player with a GLB.
+        </p>
+
+        <section>
+          <h2>What you get</h2>
+          <p>
+            A cached loader and a place helper. Static scenery uses a triangle-mesh collider that follows the model. Loose props use a box collider and can be carryable the same way crates are: look, F, optional G to stow.
+          </p>
+        </section>
+
+        <section>
+          <h2>What to ask for</h2>
+          <ul class="ask">
+            <li>A building or prop GLB with a mesh collider</li>
+            <li>A small GLB you can carry, like a crate</li>
+          </ul>
+          <h3>What not to ask for</h3>
+          <ul class="dont">
+            <li>A skinned GLB as the player</li>
+            <li>Shrinking an AABB so you can walk through the eaves. Use the mesh collider</li>
+            <li>Replacing the block cars or boats with GLB (not this module)</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Prompt examples</h2>
+          <div class="prompts">
+            <p class="prompt">Use NGIN GLB models. Place the building with a mesh collider. Do not use a shrink box. Do not replace the player.</p>
+          </div>
+        </section>
+
+        <h1 id="water">Water</h1>
+        <p class="lede">
+          A water volume floats bodies that are inside it. A pool is a hole in the ground with that volume in it. Boats need this volume. Do not lock a hull to a Y height.
+        </p>
+
+        <section>
+          <h2>What you get</h2>
+          <p>
+            An AABB water volume and a waving surface. The sandbox pool is a rectangle cut out of the grass, with a concrete basin. Anything dynamic that sits in the volume floats, including boats and a beach ball.
+          </p>
+        </section>
+
+        <section>
+          <h2>What to ask for</h2>
+          <ul class="ask">
+            <li>A pool or a lake volume with a surface</li>
+            <li>Boats that actually float (see Boats)</li>
+          </ul>
+          <h3>What not to ask for</h3>
+          <ul class="dont">
+            <li>Fake float by pinning Y</li>
+            <li>A second buoyancy system</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Prompt examples</h2>
+          <div class="prompts">
+            <p class="prompt">Use NGIN water. A pool in the ground with a fishing boat and a speedboat. Keep buoyancy. Do not rewrite water.</p>
+          </div>
+        </section>
+
+        <h1 id="daynight">Day / night</h1>
+        <p class="lede">
+          The sky already has a sun, a moon-ish night, and a cycle you can turn on. Do not ask the AI to invent a second time-of-day system.
+        </p>
+
+        <section>
+          <h2>What you get</h2>
+          <p>
+            Named looks: overcast, sunny, dusk, night, industrial. Optional cycle: midnight, dawn, noon, dusk, back to night. The sun moves. Fog and exposure follow. Night is navy, not pitch black.
+          </p>
+        </section>
+
+        <section>
+          <h2>What to ask for</h2>
+          <ul class="ask">
+            <li>A fixed time of day (noon, dusk, night)</li>
+            <li>A day/night cycle that runs while you play</li>
+          </ul>
+          <h3>What not to ask for</h3>
+          <ul class="dont">
+            <li>A custom sky shader or a second sun</li>
+            <li>Keeping night as bright as day</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Prompt examples</h2>
+          <div class="prompts">
+            <p class="prompt">Use NGIN day and night. Start at dusk. Turn the cycle on. Do not write a new sky system.</p>
+          </div>
+        </section>
+
+        <h1 id="pbr">Painterly textures</h1>
+        <p class="lede">
+          One color texture becomes a lit, fog-aware material. Use the supplied painterly collection for wood, stone, plaster, and terrain.
+        </p>
+
+        <section>
+          <h2>What you get</h2>
+          <p>
+            Thirty painterly images live in <span class="path">assets/textures/painterly/</span>. The sandbox boxes use worn crate wood, mossy wooden planks, cobblestone, and mossy plaster. Each material uses one color map with repeating UVs. Lights, shadows, fog, and night still affect the surfaces. No extra map stack, height displacement, or subdivided boxes are needed.
+          </p>
+        </section>
+
+        <section>
+          <h2>What to ask for</h2>
+          <ul class="ask">
+            <li>A prop or box with a painterly texture from <span class="path">assets/textures/painterly/</span></li>
+            <li>Consistent texture scale using world-sized UVs</li>
+          </ul>
+          <h3>What not to ask for</h3>
+          <ul class="dont">
+            <li>Normal, roughness, metallic, or height maps for these color-only textures</li>
+            <li>A custom shader graph for one material</li>
+            <li>Displacement or dense subdivision for painted surface detail</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Prompt examples</h2>
+          <div class="prompts">
+            <p class="prompt">Use NGIN painterly textures. Put Worn Crate.png on those boxes. Keep them lit, with ordinary box geometry. Reuse the material loader.</p>
+          </div>
+        </section>
+
+        <h1 id="lighting">Lighting</h1>
+        <p class="lede">
+          One SunLight with two cascaded shadows, a sky/ground hemisphere, a little ambient, and local point lights. Fog is part of the same look. Grass and props use lit materials so night darkens them.
+        </p>
+
+        <section>
+          <h2>What you get</h2>
+          <p>
+            Lit materials that take lights and fog. A campfire point light. A flashlight on the player (<kbd>L</kbd> on foot). Vehicle headlights also use <kbd>L</kbd> while seated; brake lights brighten when you brake. Distance fog that thickens at night. Sun shadows follow the camera, so a bigger map does not clip them. Do not unlit-hack the ground so it stays day-bright after sunset.
+          </p>
+        </section>
+
+        <section>
+          <h2>What to ask for</h2>
+          <ul class="ask">
+            <li>A campfire or lamp that lights a small area</li>
+            <li>A flashlight on the player, toggle with L while walking</li>
+            <li>Vehicle headlights on L while seated, automatic brake lights</li>
+            <li>Thicker or thinner fog</li>
+            <li>Night with a navy sky, not pitch black</li>
+          </ul>
+          <h3>What not to ask for</h3>
+          <ul class="dont">
+            <li>Unlit grass or basic materials for the ground</li>
+            <li>A second flashlight system. Toggle with L on foot</li>
+            <li>A second renderer or baked lightmaps (not this module)</li>
+            <li>A huge world-fixed shadow map to cover the whole level. Shadows follow the camera</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Prompt examples</h2>
+          <div class="prompts">
+            <p class="prompt">Use NGIN lighting. Night, fog, a campfire I can see by. Grass should go dark. Do not use unlit ground.</p>
+          </div>
+        </section>
+
+        <h1 id="particles">Particles</h1>
+        <p class="lede">
+          Named puff types. Fire, smoke, sparks, a hose spray, tire dust, boat wake. Do not ask the AI to write a second particle system.
+        </p>
+
+        <section>
+          <h2>What you get</h2>
+          <p>
+            Camera-facing puffs. They fade into fog (fire does not glow through it). The campfire is fire + sparks + smoke. The fountain is a hose spray. Cars kick up dust from the tires by speed. Boats throw wake spray by speed.
+          </p>
+        </section>
+
+        <section>
+          <h2>What to ask for</h2>
+          <ul class="ask">
+            <li>A campfire (fire, sparks, smoke)</li>
+            <li>A hose or fountain spray</li>
+            <li>Tire dust on a vehicle, wake spray on a boat</li>
+          </ul>
+          <h3>What not to ask for</h3>
+          <ul class="dont">
+            <li>A GPU particle compute system or a sprite-sheet editor</li>
+            <li>Tire or wake particles that ignore speed</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Prompt examples</h2>
+          <div class="prompts">
+            <p class="prompt">Use NGIN particles. Campfire with fire, sparks, and smoke. Tire dust on the cars. Wake spray on the boats. Do not write a new particle engine.</p>
+          </div>
+        </section>
+
+        <h1 id="weather">Snow &amp; rain</h1>
+        <p class="lede">
+          Camera-local weather. Rain is vertical streaks. Snow is camera-facing flakes. Toggle them in the sandbox. Do not ask the AI to write a second weather system.
+        </p>
+
+        <section>
+          <h2>What you get</h2>
+          <p>
+            Rain and snow follow the camera, recycle when you walk away, and fade into fog. They are off until you turn them on. Snow faces you so it stays visible when you turn. Rain stays upright so it reads as streaks.
+          </p>
+        </section>
+
+        <section>
+          <h2>What to ask for</h2>
+          <ul class="ask">
+            <li>Rain or snow in the sandbox (or both)</li>
+          </ul>
+          <h3>What not to ask for</h3>
+          <ul class="dont">
+            <li>A GPU weather compute system or accumulation on the ground (not this module)</li>
+            <li>Points or tiny boxes for snow — they vanish edge-on. Use the existing flakes</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Prompt examples</h2>
+          <div class="prompts">
+            <p class="prompt">Use NGIN weather. Turn snow on. Do not write a new weather system.</p>
+          </div>
+        </section>
+
+        <p class="foot">
+          Try it in the <a href="../game.html">sandbox</a>.
+          Walking APIs: <span class="path">docs/walking-module.md</span>.
+          Actions / carry / inventory APIs: <span class="path">docs/interaction-module.md</span>.
+          Vehicles / towing: <span class="path">docs/vehicle-module.md</span>.
+          GLB: <span class="path">docs/glb-module.md</span>.
+          Textures: <span class="path">docs/pbr-module.md</span>.
+          Water / boats: <span class="path">docs/water-module.md</span>.
+          Lighting / day-night / particles / weather: <span class="path">docs/effects-module.md</span>.
+        </p>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

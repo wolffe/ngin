@@ -1,0 +1,12 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Profile ngin startup",
+            "type": "shell",
+            "command": "$env:NGIN_PERF='1'; $env:NGIN_BOOT_CPU='1'; & 'C:\\Program Files\\nodejs\\node.exe' tests/browser-check.mjs",
+            "isBackground": false,
+            "problemMatcher": []
+        }
+    ]
+}

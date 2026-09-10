@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NGIN Sandbox</title>
+  <script>
+    const destination = new URL('./games/sandbox/', location.href);
+    destination.search = location.search;
+    destination.hash = location.hash;
+    location.replace(destination.href);
+  </script>
+</head>
+<body><a href="./games/sandbox/">Open the NGIN sandbox</a></body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ngin — Sandbox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,650;12..96,700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./public/styles/sandbox.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.webgpu.js",
+      "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.webgpu.js",
+      "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.tsl.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/",
+      "lil-gui": "https://cdn.jsdelivr.net/npm/lil-gui@0.20/+esm",
+      "jolt-physics": "https://cdn.jsdelivr.net/npm/jolt-physics@1.1.0/dist/jolt-physics.wasm-compat.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="boot" aria-live="polite">
+    <div class="boot-inner">
+      <div class="boot-brand">
+        <span class="boot-word">NGIN</span>
+        <span class="boot-badge">alpha</span>
+      </div>
+      <p id="boot-status" class="boot-status">Starting…</p>
+      <div class="boot-bar" aria-hidden="true"><i id="boot-fill"></i></div>
+    </div>
+  </div>
+  <canvas id="canvas" tabindex="0"></canvas>
+  <div id="prompt" hidden></div>
+  <div id="inventory" hidden></div>
+  <div id="hint" hidden>WASD move · Shift run · C crouch · Space jump · E enter/exit · F carry · G stow · L flashlight / vehicle lights · scroll zoom / hold distance · V switch view · drag to look</div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
