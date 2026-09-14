@@ -480,126 +480,55 @@ export const tennisTexture = (opts = {}) => {
   return tex;
 };
 
-// ─── Sky cubemap ──────────────────────────────────────────────────────────────
-
-const hash2 = (x, y) => {
-  const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
-  return s - Math.floor(s);
-};
-
-const noise2 = (x, y) => {
-  const ix = Math.floor(x);
-  const iy = Math.floor(y);
-  const fx = x - ix;
-  const fy = y - iy;
-  const ux = fx * fx * (3 - 2 * fx);
-  const uy = fy * fy * (3 - 2 * fy);
-  return (
-    hash2(ix, iy) * (1 - ux) * (1 - uy) +
-    hash2(ix + 1, iy) * ux * (1 - uy) +
-    hash2(ix, iy + 1) * (1 - ux) * uy +
-    hash2(ix + 1, iy + 1) * ux * uy
-  );
-};
-
-const fbm2 = (x, y) => {
-  let v = 0;
-  let a = 0.5;
-  let f = 1;
-  for (let i = 0; i < 5; i++) {
-    v += a * noise2(x * f, y * f);
-    a *= 0.5;
-    f *= 2;
-  }
-  return v;
-};
-
-const skyDir = (face, u, v) => {
-  const a = u * 2 - 1;
-  const b = v * 2 - 1;
-  if (face === 0) return [1, -b, -a];
-  if (face === 1) return [-1, -b, a];
-  if (face === 2) return [a, 1, b];
-  if (face === 3) return [a, -1, -b];
-  if (face === 4) return [a, -b, 1];
-  return [-a, -b, -1];
-};
-
 /**
- * Pixelated daylight cubemap — 16-style clumps, nearest-filtered.
- * @param {{ size?: number }} [opts]
+ * Pixelated zenith→horizon strip for a skydome (u wraps, v clamps).
+ * @param {{ width?: number, height?: number }} [opts]
  */
-export const skyboxTexture = (opts = {}) => {
-  const size = opts.size ?? 64;
-  const sun = [0.42, 0.78, 0.32];
-  const slen = Math.hypot(sun[0], sun[1], sun[2]);
-  sun[0] /= slen; sun[1] /= slen; sun[2] /= slen;
-
-  const canvases = [0, 1, 2, 3, 4, 5].map((face) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    const img = ctx.createImageData(size, size);
-    const data = img.data;
-
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        let [dx, dy, dz] = skyDir(face, (x + 0.5) / size, (y + 0.5) / size);
-        const len = Math.hypot(dx, dy, dz) || 1;
-        dx /= len; dy /= len; dz /= len;
-
-        const h = Math.max(0, Math.min(1, dy * 0.5 + 0.5));
-        let r = 92 + h * 78;
-        let g = 128 + h * 52;
-        let b = 164 + h * 40;
-        if (dy < 0.12) {
-          const t = Math.max(0, (dy + 0.1) / 0.22);
-          r = 162 + t * (r - 162);
-          g = 166 + t * (g - 166);
-          b = 168 + t * (b - 168);
-        }
-
-        if (dy > 0.04) {
-          const cx = Math.atan2(dz, dx) * 1.4;
-          const cy = dy * 2.8;
-          const n = fbm2(cx + 2.1, cy);
-          const n2 = fbm2(cx * 0.5 + 4.2, cy * 0.65 + 1.1);
-          const raw = Math.max(0, n * 0.62 + n2 * 0.55 - 0.34) * 2;
-          const w = Math.min(1, ((raw * 4) | 0) / 4);
-          if (w > 0) {
-            const band = w * (0.72 + dy * 0.18);
-            r += (232 - r) * band;
-            g +=  (234 - g) * band;
-            b += (236 - b) * band;
-          }
-        }
-
-        const ndot = dx * sun[0] + dy * sun[1] + dz * sun[2];
-        const glow = Math.max(0, ndot);
-        r += 48 * glow ** 8;
-        g += 36 * glow ** 8;
-        b += 16 * glow ** 10;
-        if (glow > 0.992) {
-          r = 248; g = 236; b = 196;
-        }
-
-        const [sr, sg, sb] = desat(r, g, b);
-        const i = (y * size + x) * 4;
-        data[i]     = sr;
-        data[i + 1] = sg;
-        data[i + 2] = sb;
-        data[i + 3] = 255;
+export const skyDomeTexture = (opts = {}) => {
+  const w = opts.width ?? 32;
+  const h = opts.height ?? 16;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  for (let y = 0; y < h; y++) {
+    const t = y / Math.max(1, h - 1);
+    for (let x = 0; x < w; x++) {
+      let r = 88 + t * 78;
+      let g = 124 + t * 48;
+      let b = 168 + t * 28;
+      if (t > 0.7) {
+        const k = (t - 0.7) / 0.3;
+        r += 16 * k;
+        g += 6 * k;
+        b -= 10 * k;
       }
+      const du = x / w - 0.38;
+      const dv = t - 0.22;
+      const d2 = du * du + dv * dv;
+      if (d2 < 0.01) {
+        r = 248;
+        g = 236;
+        b = 196;
+      } else if (d2 < 0.04) {
+        r += 36;
+        g += 24;
+        b += 8;
+      }
+      const [sr, sg, sb] = desat(r, g, b);
+      ctx.fillStyle = `rgb(${sr},${sg},${sb})`;
+      ctx.fillRect(x, y, 1, 1);
     }
-    ctx.putImageData(img, 0, 0);
-    return canvas;
-  });
-
-  const cube = new THREE.CubeTexture(canvases);
-  cube.needsUpdate = true;
-  cube.colorSpace = THREE.SRGBColorSpace;
-  cube.magFilter = THREE.NearestFilter;
-  cube.minFilter = THREE.NearestFilter;
-  cube.generateMipmaps = false;
-  return cube;
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 };
+
+/** Same strip as skyDomeTexture (older name). */
+export const skyboxTexture = skyDomeTexture;

@@ -2,7 +2,7 @@ import * as THREE from 'three/webgpu';
 import { fog as tslFog, rangeFogFactor, uniform } from 'three/tsl';
 import { SunLight } from 'three/addons/lights/SunLight.js';
 import { SunLightNode } from 'three/addons/lights/SunLightNode.js';
-import { skyboxTexture } from './ProceduralTextures.js';
+import { skyDomeTexture } from './ProceduralTextures.js';
 
 const environmentPresets = {
     'default-overcast': {
@@ -67,6 +67,77 @@ const configureShadows = (sun) => {
     }
 };
 
+const DOME_RADIUS = 800;
+const CLOUD_CELL = 14;
+const CLOUD_GRID = 32;
+const CLOUD_Y = 76;
+const CLOUD_DRIFT = 0.7;
+
+const cellHash = (x, y) => {
+    const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+    return s - Math.floor(s);
+};
+
+const remapDomeUVs = (geometry) => {
+    const uv = geometry.attributes.uv;
+    if (!uv) return;
+    for (let i = 0; i < uv.count; i++) {
+        uv.setY(i, Math.max(0, Math.min(1, (uv.getY(i) - 0.5) * 2)));
+    }
+    uv.needsUpdate = true;
+};
+
+const createSkyDome = () => {
+    const geo = new THREE.SphereGeometry(DOME_RADIUS, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+    remapDomeUVs(geo);
+    const mat = new THREE.MeshBasicNodeMaterial({
+        fog: false,
+        side: THREE.BackSide,
+        depthWrite: false,
+    });
+    mat.map = skyDomeTexture();
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.frustumCulled = false;
+    mesh.renderOrder = -1000;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    return mesh;
+};
+
+const createCloudField = () => {
+    const dummy = new THREE.Object3D();
+    const origin = -((CLOUD_GRID * CLOUD_CELL) / 2) + CLOUD_CELL / 2;
+    /** @type {number[][]} */
+    const cells = [];
+    for (let iz = 0; iz < CLOUD_GRID; iz++) {
+        for (let ix = 0; ix < CLOUD_GRID; ix++) {
+            const blob = cellHash((ix / 3) | 0, ((iz / 3) | 0) + 4);
+            const hole = cellHash(ix, iz + 11);
+            if (blob < 0.5 || hole < 0.34) continue;
+            cells.push([origin + ix * CLOUD_CELL, origin + iz * CLOUD_CELL, hole > 0.82 ? 2 : 1]);
+        }
+    }
+    const geo = new THREE.BoxGeometry(CLOUD_CELL, 3.2, CLOUD_CELL);
+    const mat = new THREE.MeshBasicNodeMaterial({ color: 0xd4d8dc, fog: true });
+    let count = 0;
+    for (const c of cells) count += c[2];
+    const mesh = new THREE.InstancedMesh(geo, mat, count);
+    let n = 0;
+    for (const [x, z, layers] of cells) {
+        for (let layer = 0; layer < layers; layer++) {
+            dummy.position.set(x, CLOUD_Y + layer * 3.2, z);
+            dummy.updateMatrix();
+            mesh.setMatrixAt(n++, dummy.matrix);
+        }
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.frustumCulled = false;
+    return mesh;
+};
+
 const lerpHex = (a, b, t) => {
     const ar = (a >> 16) & 255;
     const ag = (a >> 8) & 255;
@@ -91,7 +162,9 @@ export const createEnvironment = (engine) => {
     let hemi = null;
     /** @type {THREE.AmbientLight | null} */
     let ambient = null;
-    let skybox = null;
+    let dome = null;
+    let clouds = null;
+    let skyOn = false;
     let cycleOn = false;
     let timeOfDay = 0.42;
     let cycleSpeed = 0.02;
@@ -121,12 +194,29 @@ export const createEnvironment = (engine) => {
         fogFarU.value = far;
     };
 
+    const setSkyVisible = (on) => {
+        skyOn = on;
+        if (on) {
+            if (!dome) {
+                dome = createSkyDome();
+                engine.add(dome);
+            }
+            if (!clouds) {
+                clouds = createCloudField();
+                engine.add(clouds);
+            }
+            dome.visible = true;
+            clouds.visible = true;
+        } else {
+            if (dome) dome.visible = false;
+            if (clouds) clouds.visible = false;
+        }
+    };
+
     const apply = (presetName) => {
         const preset = environmentPresets[presetName] ?? environmentPresets['default-overcast'];
-        skybox = preset.skybox ? (skybox ?? skyboxTexture({ size: 64 })) : null;
-        engine.scene.background = preset.skybox ? skybox : new THREE.Color(preset.background);
-        engine.scene.backgroundBlurriness = 0;
-        engine.scene.backgroundIntensity = 1;
+        engine.scene.background = new THREE.Color(preset.background);
+        setSkyVisible(!!preset.skybox);
 
         if (preset.fog) writeFog(preset.fog.color, preset.fog.near, preset.fog.far);
         else engine.scene.fog = null;
@@ -171,7 +261,6 @@ export const createEnvironment = (engine) => {
         const angle = (timeOfDay - 0.25) * Math.PI * 2;
         const elev = Math.sin(angle);
         const day = Math.max(0, elev);
-        const night = 1 - day;
 
         if (sun) {
             const up = elev > 0.02;
@@ -192,17 +281,17 @@ export const createEnvironment = (engine) => {
         engine.renderer.toneMappingExposure = 0.85 + day * 0.2;
         writeFog(lerpHex(0x2a4a7a, 0xb8cce0, day), 40 + day * 40, 160 + day * 100);
         setIbl(IBL_NIGHT + day * (IBL_DAY - IBL_NIGHT));
-
-        if (night > 0.4) {
-            engine.scene.background = new THREE.Color(lerpHex(0x1c3a6e, 0x8eb4d4, day));
-        } else if (skybox) {
-            engine.scene.background = skybox;
-        } else {
-            engine.scene.background = new THREE.Color(lerpHex(0x1c3a6e, 0x8eb4d4, day));
+        engine.scene.background = new THREE.Color(lerpHex(0x1c3a6e, 0x8eb4d4, day));
+        if (dome) dome.material.color.setHex(lerpHex(0x6a7a9a, 0xffffff, day));
+        if (clouds) {
+            clouds.visible = skyOn && day > 0.12;
+            clouds.material.color.setHex(lerpHex(0x6a7080, 0xd4d8dc, day));
         }
     };
 
     engine.onUpdate((dt) => {
+        if (dome?.visible) dome.position.copy(engine.camera.position);
+        if (clouds?.visible) clouds.position.x += dt * CLOUD_DRIFT;
         if (!cycleOn) return;
         timeOfDay = (timeOfDay + dt * cycleSpeed) % 1;
         applyTimeOfDay(timeOfDay);
@@ -216,7 +305,7 @@ export const createEnvironment = (engine) => {
             return sun;
         },
         get envMap() {
-            return skybox;
+            return null;
         },
         trackIbl(mat) {
             iblMats.push(mat);
