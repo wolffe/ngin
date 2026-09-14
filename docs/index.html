@@ -44,7 +44,7 @@
           <li><a class="now" href="#glb">GLB models</a></li>
           <li><a class="now" href="#water">Water</a></li>
           <li><a class="now" href="#daynight">Day / night</a></li>
-          <li><a class="now" href="#pbr">Painterly textures</a></li>
+          <li><a class="now" href="#textures">Pixel textures</a></li>
           <li><a class="now" href="#lighting">Lighting</a></li>
           <li><a class="now" href="#particles">Particles</a></li>
           <li><a class="now" href="#weather">Snow &amp; rain</a></li>
@@ -339,13 +339,14 @@
           <h2>What to ask for</h2>
           <ul class="ask">
             <li>A car, truck, bus, or Kenworth in the level</li>
+            <li>A GLB vehicle via <code>createVehicle({ meshUrl })</code> (wheels as separate meshes; optional <code>.parts.json</code>)</li>
             <li>Look-at enter with E (pass the interaction system; do not use a radius poll)</li>
           </ul>
           <h3>What not to ask for</h3>
           <ul class="dont">
             <li>A custom vehicle physics stack or arcade hover-car</li>
             <li>Driving two vehicles at once</li>
-            <li>Replacing the block vehicles with GLB</li>
+            <li>Inventing a second wheeled controller (use <code>createVehicle</code> with <code>meshUrl</code> for GLB bodies)</li>
           </ul>
         </section>
 
@@ -481,7 +482,8 @@
           <ul class="dont">
             <li>A skinned GLB as the player</li>
             <li>Shrinking an AABB so you can walk through the eaves. Use the mesh collider</li>
-            <li>Replacing the block cars or boats with GLB (not this module)</li>
+            <li>Driveable GLB cars (that is the vehicle module’s <code>meshUrl</code>, not this prop path)</li>
+            <li>Replacing boats with GLB</li>
           </ul>
         </section>
 
@@ -556,36 +558,30 @@
           </div>
         </section>
 
-        <h1 id="pbr">Painterly textures</h1>
+        <h1 id="textures">Pixel textures</h1>
         <p class="lede">
-          One color texture becomes a lit, fog-aware material. Use the supplied painterly collection for wood, stone, plaster, and terrain.
+          16×16 maps generated at runtime. Olive grass, dusty brick, muted wood and stone — not primary RGB.
         </p>
 
         <section>
           <h2>What you get</h2>
           <p>
-            Thirty painterly images live in <span class="path">assets/textures/painterly/</span>. The sandbox boxes use worn crate wood, mossy wooden planks, cobblestone, and mossy plaster. Each material uses one color map with repeating UVs. Lights, shadows, fog, and night still affect the surfaces. No extra map stack, height displacement, or subdivided boxes are needed.
+            Generators live in <span class="path">src/graphics/ProceduralTextures.js</span>. Grass, dirt, rock, and rusty metal each have three shades in <span class="path">src/graphics/BlockTextures.js</span>. The sandbox boxes use wood, stone, brick, grass, dirt, rock, and rusty metal from <code>createMaterialLibrary</code>. Nearest filtering keeps texels sharp. Lights, shadows, fog, and night still affect the surfaces.
           </p>
         </section>
 
         <section>
           <h2>What to ask for</h2>
           <ul class="ask">
-            <li>A prop or box with a painterly texture from <span class="path">assets/textures/painterly/</span></li>
+            <li>A prop or box using <code>materials.get('wood')</code>, <code>stone</code>, <code>brick</code>, or <code>grass</code></li>
             <li>Consistent texture scale using world-sized UVs</li>
-          </ul>
-          <h3>What not to ask for</h3>
-          <ul class="dont">
-            <li>Normal, roughness, metallic, or height maps for these color-only textures</li>
-            <li>A custom shader graph for one material</li>
-            <li>Displacement or dense subdivision for painted surface detail</li>
           </ul>
         </section>
 
         <section>
           <h2>Prompt examples</h2>
           <div class="prompts">
-            <p class="prompt">Use NGIN painterly textures. Put Worn Crate.png on those boxes. Keep them lit, with ordinary box geometry. Reuse the material loader.</p>
+            <p class="prompt">Use NGIN procedural textures. Put library wood on those boxes. Keep them lit, with ordinary box geometry.</p>
           </div>
         </section>
 
@@ -696,7 +692,7 @@
           Actions / carry / inventory APIs: <span class="path">docs/interaction-module.md</span>.
           Vehicles / towing: <span class="path">docs/vehicle-module.md</span>.
           GLB: <span class="path">docs/glb-module.md</span>.
-          Textures: <span class="path">docs/pbr-module.md</span>.
+          Textures: <span class="path">docs/textures-module.md</span>.
           Water / boats: <span class="path">docs/water-module.md</span>.
           Lighting / day-night / particles / weather: <span class="path">docs/effects-module.md</span>.
         </p>

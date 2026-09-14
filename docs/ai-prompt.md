@@ -34,9 +34,8 @@ Missing capabilities require a separately approved maintainer task.
 - `src/player/Player.js` + `src/player/CharacterModel.js` — R6 character + locomotion
 - `src/player/Flashlight.js` — L toggles a camera spotlight
 - `src/player/Use.js` — E/F/G look-at actions, carry, inventory
-- `src/vehicle/Vehicle.js` — wheeled vehicles (`car`, `truck`, `bus`, `kenworth`)
-- `src/vehicle/Boat.js` — buoyant boat
-- `src/graphics/Environment.js`, `MaterialLibrary.js` (including `loadPainterlyMaterial`), `ProceduralTextures.js`, `Particles.js`, `Weather.js`
+- `src/vehicle/Vehicle.js` — wheeled vehicles (`car`, `truck`, `bus`, `kenworth`, or GLB via `meshUrl`)- `src/vehicle/Boat.js` — buoyant boat
+- `src/graphics/Environment.js`, `MaterialLibrary.js`, `ProceduralTextures.js`, `BlockTextures.js`, `Particles.js`, `Weather.js`
 
 **Rules:**
 

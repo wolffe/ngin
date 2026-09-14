@@ -31,7 +31,7 @@ Sandbox: fire pit uses fire + sparks + smoke; fountain uses spray; every vehicle
 
 ## Weather
 
-`createWeather(engine)` — rain (vertical streaks) and snow (camera-facing flakes), off by default. They spawn around the camera and recycle when you walk away.
+`createWeather(engine)` — rain (vertical streaks) and snow (camera-facing flakes), off by default. They spawn around the camera and recycle when you walk away. Streaks and flakes use small nearest-filtered pixel-art textures so they stay crisp without lowering the screen resolution.
 
 ```js
 weather.setRain(true);
@@ -63,7 +63,7 @@ environment.setCycle(true);
 environment.setTimeOfDay(0.5); // 0 midnight · 0.25 dawn · 0.5 noon · 0.75 dusk
 ```
 
-Moves the sun, intensity, fog, and exposure. Night is navy, not pitch black. Does not rebuild the sky cubemap every frame. Lit painterly surfaces darken with the rest of the scene.
+Moves the sun, intensity, fog, and exposure. Night is navy, not pitch black. Does not rebuild the sky cubemap every frame. Lit textured surfaces darken with the rest of the scene.
 
 The sun uses the r186 `SunLight` addon with two automatically fitted, texel-stabilized cascades. Shadows cover up to 128 world units of view depth, with 2048x2048 per cascade in a 4096x2048 atlas. Cascade cameras render layer 0 only, excluding layer-1 particles and weather. Larger worlds do not require a world-fixed ortho box; shadow distance and resolution remain quality/performance tradeoffs.
 
@@ -71,4 +71,4 @@ The sun uses the r186 `SunLight` addon with two automatically fitted, texel-stab
 
 Native WebGPU uses Three's clustered point-light addon. Spotlights and SunLight remain on the normal lighting path. Solid material colors and lamp emissive intensities use native uniform-backed properties so color variations can share shader programs.
 
-`MaterialLibrary` uses `MeshStandardNodeMaterial` for solid colors and `loadPainterlyMaterial` for single color textures. Textured ground uses `createMappedMaterial` (lit + fog). Do not use `MeshBasicNodeMaterial` for grass. `createEnvironment` registers `SunLightNode` with the renderer and creates a shadow-casting `SunLight`; its position is a direction toward the sun, not a camera-relative location, and it has no target. Player flashlight: `createFlashlight(engine, input, player, settings)` in `src/player/Flashlight.js`, toggle with L on foot (disabled while seated). Vehicle / boat lamps: `attachLamps` in `src/vehicle/Lights.js`, L toggles headlights while seated; braking brightens red tails. Fog is `THREE.Fog` plus a matching `scene.fogNode`, driven by the preset and the cycle.
+`MaterialLibrary` uses `MeshStandardNodeMaterial` for solids and 16×16 procedural maps (`grass`, `dirt`, `stone`, `rock`, `wood`, `brick`). Textured ground uses `createMappedMaterial` (lit + fog). Do not use `MeshBasicNodeMaterial` for grass. `createEnvironment` registers `SunLightNode` with the renderer and creates a shadow-casting `SunLight`; its position is a direction toward the sun, not a camera-relative location, and it has no target. Player flashlight: `createFlashlight(engine, input, player, settings)` in `src/player/Flashlight.js`, toggle with L on foot (disabled while seated). Vehicle / boat lamps: `attachLamps` in `src/vehicle/Lights.js`, L toggles headlights while seated; braking brightens red tails. Fog is `THREE.Fog` plus a matching `scene.fogNode`, driven by the preset and the cycle.

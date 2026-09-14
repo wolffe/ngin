@@ -272,8 +272,8 @@ try {
         assert.deepEqual(linkFailures, [], 'Local links and fragments must resolve');
         await evaluate(`document.querySelector('.recipes summary').click()`);
         assert.equal(await evaluate(`document.querySelector('.recipes details').open`), true);
-        await navigate('/docs/#pbr');
-        assert.equal(await evaluate(`document.querySelector('.module-list a[href="#pbr"]').getAttribute('aria-current')`), 'location');
+        await navigate('/docs/#textures');
+        assert.equal(await evaluate(`document.querySelector('.module-list a[href="#textures"]').getAttribute('aria-current')`), 'location');
         console.log('Local links, fragment navigation, and native disclosures passed.');
         const inventoryResult = await evaluate(`(async () => {
     const { createInventory } = await import('/src/player/Inventory.js');
@@ -354,31 +354,30 @@ try {
             }, `game/${name}: native SunLight integration`);
             assert.equal(await evaluate(`import('/tests/static-model-check.js').then(module => module.checkStaticModelBatching())`), true, `game/${name}: static model batching`);
             console.log(`game/${name}: AO pixels`, await evaluate(`import('/tests/ao-check.js').then(module => module.checkAO())`));
-            const painterlyResult = await evaluate(`(async () => {
+            const textureResult = await evaluate(`(async () => {
           const THREE = await import('three/webgpu');
-          const { loadPainterlyMaterial } = await import('/src/graphics/MaterialLibrary.js');
-          const requests = [];
-          const map = new THREE.Texture();
-          const material = await loadPainterlyMaterial({ loadTexture: async url => { requests.push(url); return map; } }, 'Worn Crate.png');
+          const { grassTexture } = await import('/src/graphics/ProceduralTextures.js');
+          const { createBlockTextures } = await import('/src/graphics/BlockTextures.js');
+          const { createMaterialLibrary } = await import('/src/graphics/MaterialLibrary.js');
+          const map = grassTexture({ repeat: 1 });
+          const blocks = createBlockTextures();
+          const library = createMaterialLibrary();
+          const grass = library.get('grass');
           const resources = performance.getEntriesByType('resource').map(entry => decodeURIComponent(entry.name));
-          const filenames = ['Worn Crate.png', 'Mossy Wooden Planks.png', 'CobbleStoneGreyBrown.png', 'PlasterMossy.png'];
           const result = {
-            requests,
-            colorOnly: material.map === map && !material.normalMap && !material.roughnessMap && !material.metalnessMap && !material.aoMap && !material.displacementMap && !material.positionNode,
-            lit: material.isMeshStandardNodeMaterial && material.fog && material.roughness === 0.9 && material.metalness === 0,
-            textureSettings: map.colorSpace === THREE.SRGBColorSpace && map.wrapS === THREE.RepeatWrapping && map.wrapT === THREE.RepeatWrapping && map.minFilter === THREE.LinearMipmapLinearFilter && map.anisotropy === 4,
-            loaded: filenames.every(filename => resources.some(url => url.endsWith('/assets/textures/painterly/' + filename))),
-            noOldMaps: !resources.some(url => /oily-tubework|red-scifi-metal|storage-container2|worn-factory-siding/.test(url)),
-            noDisplacementControl: ![...document.querySelectorAll('.lil-gui .name')].some(element => element.textContent === 'displacement'),
+            size: map.image.width === 64 && map.image.height === 64,
+            nearest: map.minFilter === THREE.NearestFilter && map.magFilter === THREE.NearestFilter,
+            libraryMap: grass.map != null,
+            packs: blocks.grass.length === 3 && blocks.dirt.length === 3 && blocks.rock.length === 3 && blocks.rustyMetal.length === 3 && blocks.grassBlock.length === 3,
+            rusty: library.pack('rustyMetal')?.length === 3,
+            noPacks: !resources.some(url => url.includes('/assets/textures/32px/') || url.includes('/assets/textures/painterly/')),
           };
-          material.dispose();
           map.dispose();
           return result;
         })()`);
-            assert.deepEqual(painterlyResult, {
-                requests: ['./assets/textures/painterly/Worn%20Crate.png'],
-                colorOnly: true, lit: true, textureSettings: true, loaded: true, noOldMaps: true, noDisplacementControl: true,
-            }, `game/${name}: painterly color textures without displacement`);
+            assert.deepEqual(textureResult, {
+                size: true, nearest: true, libraryMap: true, packs: true, rusty: true, noPacks: true,
+            }, `game/${name}: procedural block textures`);
             const frameWait = `new Promise(resolve => {
           let frames = 0;
           const tick = () => ++frames >= 12 ? resolve() : requestAnimationFrame(tick);

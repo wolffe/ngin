@@ -1,0 +1,18 @@
+{
+    "length": 5.1,
+    "flip": true,
+    "hinges": { "trunk": "bottom" },
+    "nameMap": {
+        "hub_": "body",
+        "transmission": "body",
+        "glass_lf": "doorL",
+        "glass_rf": "doorR",
+        "glass_windscreen": "rearGlass",
+        "windscreen_ok001": "windshield",
+        "movsteer": "steering",
+        "f_shake": "engine"
+    },
+    "recolor": {
+        "primary.002": { "color": "#c4141a", "roughness": 0.28, "metalness": 0.12, "grime": 0.55 }
+    }
+}

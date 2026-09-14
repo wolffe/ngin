@@ -35,7 +35,7 @@ After `createPlayer(...)`:
 ```js
 import { createVehicle } from "./vehicle/Vehicle.js";
 
-createVehicle(engine, physics, materials, player, input, {
+await createVehicle(engine, physics, materials, player, input, {
     kind: "car",
     x: 0,
     y: 1.15,
@@ -44,9 +44,24 @@ createVehicle(engine, physics, materials, player, input, {
 });
 ```
 
-`kind`: `'car'` | `'truck'` | `'bus'` | `'kenworth'`. Defaults: `kind: 'car'`, `id: vehicle_${kind}`, `y: spec.spawnY`, `z: -12`.
+`kind`: `'car'` | `'truck'` | `'bus'` | `'kenworth'`. Defaults: `kind: 'car'` (or `'truck'` when `meshUrl` is set), `id: vehicle_${kind}`, `y: spec.spawnY`, `z: -12`.
 
-Sandbox spawns all four in a line at `z = -12`.
+### GLB body (`meshUrl`)
+
+Same Jolt wheeled controller; visuals come from a GLB instead of block meshes. Prefer models with **separate wheel meshes**. Optional sidecar `*.parts.json` next to the GLB (`length`, `flip`, `nameMap`, `recolor`) — see `assets/models/vehicles/ford_ranger_offroad.parts.json`.
+
+```js
+await createVehicle(engine, physics, materials, player, input, {
+    meshUrl: "./assets/models/vehicles/ford_ranger_offroad.glb",
+    x: 12,
+    z: -12,
+    interaction,
+});
+```
+
+Wheel centres and radius are measured from the model and applied to suspension attach points. Block kinds stay available.
+
+Sandbox spawns the four block vehicles plus the Ranger GLB in a line at `z = -12`.
 
 ## Controls (while seated)
 
@@ -83,7 +98,7 @@ Dynamics that feel the same on every vehicle live in `SHARED` (COM, anti-roll, s
 
 ## Visuals
 
-Primitive meshes (body, cabin, glass, bumpers, lights). Wheels: rubber tyre + chrome rim, posed with `constraint.GetWheelLocalTransform`.
+Block kinds: primitive meshes (body, cabin, glass, bumpers, lights). Wheels: rubber tyre + chrome rim. GLB kinds: `loadGlbVehicleModel` body + wheel carriers. All wheels posed with `constraint.GetWheelLocalTransform`.
 
 Tire dust (`type: 'dust'`) emits from the contact patches. Rate follows chassis speed (none below ~3 m/s, full by ~17 m/s). The Kenworth trailer has its own emitter.
 
@@ -110,7 +125,7 @@ Trailer: 4000 kg, 5.5 m half-length, brakes only.
 ## API
 
 ```js
-const v = createVehicle(engine, physics, materials, player, input, spawn);
+const v = await createVehicle(engine, physics, materials, player, input, spawn);
 
 v.kind; // profile name
 v.chassis; // THREE.Group

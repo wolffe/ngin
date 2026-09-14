@@ -31,48 +31,68 @@ const makeTexture = (canvas, repeatX = 1, repeatY = 1) => {
   return tex;
 };
 
-const pixelCanvas = (size, rand, colorAt) => {
+const texHash = (x, y) => {
+  const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  return s - Math.floor(s);
+};
+
+const clampByte = (n) => Math.max(0, Math.min(255, n | 0));
+
+const TEXEL = 16;
+const DEFAULT_SIZE = 64;
+
+const clump = (x, y, seed, palette, spread, size = DEFAULT_SIZE) => {
+  const step = Math.max(1, (size / TEXEL) | 0);
+  const pick = palette[(texHash((x / step) | 0, ((y / step) | 0) + seed) * palette.length) | 0];
+  const j = ((texHash(x + seed, y) - 0.5) * spread) | 0;
+  return [clampByte(pick[0] + j), clampByte(pick[1] + j), clampByte(pick[2] + j)];
+};
+
+const paintRim = (ctx, x0, y0, size, mode = 'frame') => {
+  ctx.fillStyle = 'rgba(236, 220, 176, 0.35)';
+  ctx.fillRect(x0, y0, size, 1);
+  ctx.fillRect(x0, y0, 1, size);
+  if (mode === 'frame') {
+    ctx.fillStyle = 'rgba(36, 24, 14, 0.28)';
+    ctx.fillRect(x0, y0 + size - 1, size, 1);
+    ctx.fillRect(x0 + size - 1, y0, 1, size);
+  }
+};
+
+const pixelCanvas = (size, colorAt, rim = 'frame') => {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const [r, g, b] = colorAt(x, y, rand);
+      const [r, g, b] = colorAt(x, y);
       ctx.fillStyle = `rgb(${r},${g},${b})`;
       ctx.fillRect(x, y, 1, 1);
     }
   }
+  paintRim(ctx, 0, 0, size, rim);
   return canvas;
-};
-
-const jitter = (rand, palette, spread) => {
-  const pick = palette[(rand() * palette.length) | 0];
-  const j = ((rand() - 0.5) * spread) | 0;
-  return [
-    Math.max(0, Math.min(255, pick[0] + j)),
-    Math.max(0, Math.min(255, pick[1] + j)),
-    Math.max(0, Math.min(255, pick[2] + j)),
-  ];
 };
 
 // ─── Grass ────────────────────────────────────────────────────────────────────
 
 /**
- * Pixelated grass — small grid of greens with occasional dark/light variation.
+ * Pixelated grass — warm olive with yellow flecks, like sunlit turf.
  * @param {{ size?: number, repeat?: number, seed?: number }} [opts]
  */
 export const grassTexture = (opts = {}) => {
-  const size = opts.size ?? 16;
-  const palette = [
-    [86, 102, 62],
-    [76, 94, 56],
-    [94, 108, 70],
-    [68, 90, 54],
-    [82, 98, 64],
-    [90, 104, 66],
+  const size = opts.size ?? DEFAULT_SIZE;
+  const seed = opts.seed ?? 101;
+  const palette = opts.palette ?? [
+    [142, 156, 52],
+    [118, 138, 44],
+    [166, 168, 62],
+    [96, 118, 40],
+    [154, 148, 56],
+    [128, 142, 48],
   ];
   return makeTexture(
-    pixelCanvas(size, prng(opts.seed ?? 101), (_x, _y, rand) => jitter(rand, palette, 10)),
+    pixelCanvas(size, (x, y) => clump(x, y, seed, palette, 18, size), 'grid'),
     opts.repeat ?? 12,
     opts.repeat ?? 12
   );
@@ -81,27 +101,27 @@ export const grassTexture = (opts = {}) => {
 // ─── Stone ────────────────────────────────────────────────────────────────────
 
 /**
- * Pixelated stone / cobble — greys with occasional blue-ish or brown-ish tints.
+ * Warm sandstone / cobble — beige chunks with darker grout.
  * @param {{ size?: number, repeat?: number, seed?: number }} [opts]
  */
 export const stoneTexture = (opts = {}) => {
-  const size = opts.size ?? 16;
+  const size = opts.size ?? DEFAULT_SIZE;
+  const seed = opts.seed ?? 207;
+  const t = Math.max(1, (size / TEXEL) | 0);
   const palette = [
-    [128, 126, 122],
-    [118, 118, 116],
-    [108, 108, 106],
-    [136, 124, 116],
-    [100, 100, 102],
-    [122, 120, 118],
+    [186, 162, 118],
+    [168, 146, 104],
+    [204, 178, 128],
+    [148, 130, 94],
+    [176, 154, 110],
   ];
-  const crack = Math.max(4, (size / 2) | 0);
   return makeTexture(
-    pixelCanvas(size, prng(opts.seed ?? 207), (x, y, rand) => {
-      if ((x % crack === 0 || y % 8 === 0) && rand() > 0.5) {
-        const v = 72 + ((rand() * 16) | 0);
-        return [v, v, v - 2];
+    pixelCanvas(size, (x, y) => {
+      if ((x % (8 * t) === 0 || y % (8 * t) === 0) && texHash(x, y + seed) > 0.55) {
+        const v = 78 + ((texHash(x + 3, y) * 18) | 0);
+        return [v + 8, v, v - 10];
       }
-      return jitter(rand, palette, 12);
+      return clump(x, y, seed, palette, 16, size);
     }),
     opts.repeat ?? 4,
     opts.repeat ?? 4
@@ -109,21 +129,127 @@ export const stoneTexture = (opts = {}) => {
 };
 
 /**
- * Pixelated dirt — browns with occasional darker clumps.
+ * Terracotta dirt — orange-brown clumps.
  * @param {{ size?: number, repeat?: number, seed?: number }} [opts]
  */
 export const dirtTexture = (opts = {}) => {
-  const size = opts.size ?? 16;
-  const palette = [
-    [108, 82, 58],
-    [96, 74, 52],
-    [88, 68, 48],
-    [116, 88, 64],
-    [80, 62, 44],
-    [102, 78, 56],
+  const size = opts.size ?? DEFAULT_SIZE;
+  const seed = opts.seed ?? 419;
+  const palette = opts.palette ?? [
+    [168, 108, 52],
+    [148, 90, 42],
+    [186, 122, 58],
+    [128, 78, 36],
+    [158, 98, 46],
   ];
   return makeTexture(
-    pixelCanvas(size, prng(opts.seed ?? 419), (_x, _y, rand) => jitter(rand, palette, 10)),
+    pixelCanvas(size, (x, y) => clump(x, y, seed, palette, 16, size)),
+    opts.repeat ?? 1,
+    opts.repeat ?? 1
+  );
+};
+
+/**
+ * Honey oak planks — warm grain, dark seams.
+ * @param {{ size?: number, repeat?: number, seed?: number }} [opts]
+ */
+export const woodTexture = (opts = {}) => {
+  const size = opts.size ?? DEFAULT_SIZE;
+  const seed = opts.seed ?? 611;
+  const t = Math.max(1, (size / TEXEL) | 0);
+  const palette = [
+    [168, 114, 58],
+    [148, 96, 46],
+    [186, 128, 64],
+    [132, 88, 42],
+  ];
+  return makeTexture(
+    pixelCanvas(size, (x, y) => {
+      if (x % (4 * t) === 0) return [92, 62, 32];
+      const [r, g, b] = clump(x, y, seed, palette, 12, size);
+      const grain = ((y + x * 0.2) % (5 * t) === 0) ? -12 : 0;
+      return [clampByte(r + grain), clampByte(g + grain), clampByte(b + grain)];
+    }),
+    opts.repeat ?? 1,
+    opts.repeat ?? 1
+  );
+};
+
+/**
+ * Warm terracotta brick with sandy mortar.
+ * @param {{ size?: number, repeat?: number, seed?: number }} [opts]
+ */
+export const brickTexture = (opts = {}) => {
+  const size = opts.size ?? DEFAULT_SIZE;
+  const seed = opts.seed ?? 823;
+  const t = Math.max(1, (size / TEXEL) | 0);
+  const palette = [
+    [176, 86, 56],
+    [158, 74, 48],
+    [192, 102, 66],
+    [140, 68, 44],
+  ];
+  return makeTexture(
+    pixelCanvas(size, (x, y) => {
+      const row = (y / (4 * t)) | 0;
+      const ox = row % 2 === 0 ? 0 : 4 * t;
+      if (y % (4 * t) === 0 || (x + ox) % (8 * t) === 0) return [198, 176, 148];
+      return clump(x, y, seed, palette, 14, size);
+    }),
+    opts.repeat ?? 1,
+    opts.repeat ?? 1
+  );
+};
+
+/**
+ * Darker basalt with warm dust.
+ * @param {{ size?: number, repeat?: number, seed?: number }} [opts]
+ */
+export const rockTexture = (opts = {}) => {
+  const size = opts.size ?? DEFAULT_SIZE;
+  const seed = opts.seed ?? 907;
+  const palette = opts.palette ?? [
+    [118, 102, 84],
+    [96, 86, 72],
+    [132, 112, 90],
+    [82, 74, 64],
+  ];
+  return makeTexture(
+    pixelCanvas(size, (x, y) => clump(x, y, seed, palette, 16, size)),
+    opts.repeat ?? 1,
+    opts.repeat ?? 1
+  );
+};
+
+/**
+ * Pitted steel with terracotta rust blooms. `rust` 0–1 is coverage.
+ * @param {{ size?: number, repeat?: number, seed?: number, rust?: number, metalPalette?: number[][], rustPalette?: number[][] }} [opts]
+ */
+export const rustyMetalTexture = (opts = {}) => {
+  const size = opts.size ?? DEFAULT_SIZE;
+  const seed = opts.seed ?? 1103;
+  const rustAmt = opts.rust ?? 0.45;
+  const metalPal = opts.metalPalette ?? [
+    [118, 108, 98],
+    [96, 92, 88],
+    [132, 120, 108],
+    [84, 82, 80],
+  ];
+  const rustPal = opts.rustPalette ?? [
+    [156, 78, 42],
+    [138, 64, 36],
+    [176, 92, 48],
+    [112, 52, 32],
+  ];
+  const t = Math.max(1, (size / TEXEL) | 0);
+  return makeTexture(
+    pixelCanvas(size, (x, y) => {
+      const bloom = texHash((x / (4 * t)) | 0, ((y / (4 * t)) | 0) + seed);
+      const speck = texHash(x + seed, y);
+      const rusty = bloom < rustAmt || speck < rustAmt * 0.35;
+      if (!rusty && speck > 0.92) return [62, 58, 54];
+      return clump(x, y, seed, rusty ? rustPal : metalPal, 14, size);
+    }),
     opts.repeat ?? 1,
     opts.repeat ?? 1
   );
@@ -135,47 +261,58 @@ export const dirtTexture = (opts = {}) => {
  * @param {{ size?: number, seed?: number }} [opts]
  */
 export const grassBlockAtlas = (opts = {}) => {
-  const s = opts.size ?? 16;
-  const grassRand = prng((opts.seed ?? 101) + 1);
-  const dirtRand = prng((opts.seed ?? 419) + 1);
-  const grassPal = [
-    [86, 102, 62],
-    [76, 94, 56],
-    [94, 108, 70],
-    [68, 90, 54],
-    [82, 98, 64],
+  const s = opts.size ?? DEFAULT_SIZE;
+  const grassPal = opts.grassPalette ?? [
+    [142, 156, 52],
+    [118, 138, 44],
+    [166, 168, 62],
+    [96, 118, 40],
+    [154, 148, 56],
   ];
-  const dirtPal = [
-    [108, 82, 58],
-    [96, 74, 52],
-    [88, 68, 48],
-    [116, 88, 64],
-    [80, 62, 44],
+  const dirtPal = opts.dirtPalette ?? [
+    [168, 108, 52],
+    [148, 90, 42],
+    [186, 122, 58],
+    [128, 78, 36],
+    [158, 98, 46],
   ];
   const canvas = document.createElement('canvas');
   canvas.width = s;
   canvas.height = s * 3;
   const ctx = canvas.getContext('2d');
-  const fillBand = (y0, rand, palette, spread) => {
+  const fillBand = (y0, seed, palette, spread) => {
     for (let y = 0; y < s; y++) {
       for (let x = 0; x < s; x++) {
-        const [r, g, b] = jitter(rand, palette, spread);
+        const [r, g, b] = clump(x, y, seed, palette, spread, s);
         ctx.fillStyle = `rgb(${r},${g},${b})`;
         ctx.fillRect(x, y0 + y, 1, 1);
       }
     }
+    paintRim(ctx, 0, y0, s);
   };
-  fillBand(0, grassRand, grassPal, 10);
-  fillBand(s, dirtRand, dirtPal, 10);
-  const lip = Math.max(2, (s / 5) | 0);
-  for (let y = 0; y < lip; y++) {
-    for (let x = 0; x < s; x++) {
-      const [r, g, b] = jitter(grassRand, grassPal, 8);
+  fillBand(0, (opts.seed ?? 101) + 1, grassPal, 18);
+  fillBand(s, (opts.seed ?? 419) + 1, dirtPal, 16);
+  const t = Math.max(1, (s / TEXEL) | 0);
+  const seed = opts.seed ?? 101;
+  for (let x = 1; x < s - 1; x++) {
+    const drop = 2 * t + ((texHash(x, seed + 4) * (4 * t + 1)) | 0);
+    for (let y = 0; y < drop; y++) {
+      if (y > t && texHash(x * 5, y + seed) < 0.2) continue;
+      const [r, g, b] = clump(x, y, seed + 4, grassPal, 12, s);
       ctx.fillStyle = `rgb(${r},${g},${b})`;
       ctx.fillRect(x, s + y, 1, 1);
     }
+    if (texHash(x, seed + 11) > 0.78) {
+      const y = drop;
+      if (y < s - 1) {
+        const [r, g, b] = clump(x, y, seed + 4, grassPal, 12, s);
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillRect(x, s + y, 1, 1);
+      }
+    }
   }
-  fillBand(s * 2, prng((opts.seed ?? 419) + 7), dirtPal, 10);
+  paintRim(ctx, 0, s, s);
+  fillBand(s * 2, (opts.seed ?? 419) + 7, dirtPal, 16);
   const tex = new THREE.CanvasTexture(canvas);
   tex.magFilter = THREE.NearestFilter;
   tex.minFilter = THREE.NearestFilter;
@@ -220,8 +357,8 @@ export const grassTuftTexture = (opts = {}) => {
     const x = 2 + ((rand() * (size - 5)) | 0);
     const w = 1;
     const h = size * (0.4 + rand() * 0.5);
-    const g = 78 + ((rand() * 28) | 0);
-    ctx.fillStyle = `rgb(${48 + ((rand() * 16) | 0)},${g},${42 + ((rand() * 14) | 0)})`;
+    const g = 118 + ((rand() * 36) | 0);
+    ctx.fillStyle = `rgb(${72 + ((rand() * 28) | 0)},${g},${36 + ((rand() * 16) | 0)})`;
     ctx.fillRect(x | 0, size - h, w, h);
   }
   const tex = new THREE.CanvasTexture(canvas);

@@ -39,6 +39,6 @@ Static scenery uses `physics.addStaticMesh` (Jolt `MeshShape` from the placed tr
 
 The visual is parented to a holder at the bbox center so `syncDynamicMeshes` does not jump the scene origin.
 
-Keep GLB props off the R6 player.
+Keep GLB props off the R6 player. Driveable cars use `createVehicle({ meshUrl })` in the vehicle module, not `placeGltf`.
 
 Sandbox: `low_poly_building.glb` at `(24, -24)`, height 12 m, `static-mesh`, with `batchStatic: true`. Batching runs after collision triangle collection and does not mutate cached source geometry. Transparent, skinned, instanced, morph-target and mirrored parts are excluded; models with animation clips are not batched. Only opt in for scenery whose individual mesh transforms and identities will not be used later. The combined meshes have coarser frustum culling than their original parts.

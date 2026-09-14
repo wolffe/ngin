@@ -13,6 +13,7 @@ import { LAYER_MOVING } from '../physics/PhysicsWorld.js';
 import { bindSeat } from '../player/Occupancy.js';
 import { createParticleEmitter } from '../graphics/Particles.js';
 import { attachLamps } from './Lights.js';
+import { loadGlbVehicleModel } from './GlbVehicleModel.js';
 
 const FL = 0, FR = 1, BL = 2, BR = 3;
 
@@ -337,7 +338,7 @@ const buildVehicleBody = (Jolt, bodyInterface, spec, x, y, z, kind = 'car') => {
     return body;
 };
 
-const buildVehicleConstraint = (Jolt, physicsSystem, body, spec, hasEngine = true) => {
+const buildVehicleConstraint = (Jolt, physicsSystem, body, spec, hasEngine = true, wheelLocals = null) => {
     const settings = new Jolt.VehicleConstraintSettings();
     settings.mMaxPitchRollAngle = rad(spec.maxPitchRoll ?? 60);
     settings.mWheels.clear();
@@ -346,9 +347,9 @@ const buildVehicleConstraint = (Jolt, physicsSystem, body, spec, hasEngine = tru
     const wR = spec.wheelRadius, wW = spec.wheelWidth;
     const hW = spec.halfWidth, oH = spec.wheelOffsetH, oV = spec.wheelOffsetV;
 
-    const addWheel = (px, pz, steer, hbTorque) => {
+    const addWheel = (px, py, pz, steer, hbTorque) => {
         const w = new Jolt.WheelSettingsWV();
-        w.mPosition = new Jolt.Vec3(px, -oV, pz);
+        w.mPosition = new Jolt.Vec3(px, py, pz);
         w.mMaxSteerAngle = steer;
         w.mMaxBrakeTorque = spec.brakeTorque;
         w.mMaxHandBrakeTorque = hbTorque;
@@ -362,10 +363,18 @@ const buildVehicleConstraint = (Jolt, physicsSystem, body, spec, hasEngine = tru
     };
 
     const hb = spec.handBrakeTorque;
-    addWheel(hW, oH, maxSteer, hb);
-    addWheel(-hW, oH, maxSteer, hb);
-    addWheel(hW, -oH, 0, hb);
-    addWheel(-hW, -oH, 0, hb);
+    if (wheelLocals?.length === 4) {
+        const steers = [maxSteer, maxSteer, 0, 0];
+        for (let i = 0; i < 4; i++) {
+            const p = wheelLocals[i];
+            addWheel(p.x, p.y, p.z, steers[i], hb);
+        }
+    } else {
+        addWheel(hW, -oV, oH, maxSteer, hb);
+        addWheel(-hW, -oV, oH, maxSteer, hb);
+        addWheel(hW, -oV, -oH, 0, hb);
+        addWheel(-hW, -oV, -oH, 0, hb);
+    }
 
     const ctrlSettings = new Jolt.WheeledVehicleControllerSettings();
     if (hasEngine) {
@@ -435,34 +444,79 @@ const buildWheelMeshes = (chassis, spec, mats) => {
  * @param {ReturnType<import('../graphics/MaterialLibrary.js').createMaterialLibrary>} materials
  * @param {ReturnType<import('../player/Player.js').createPlayer>} player
  * @param {ReturnType<import('../input/InputManager.js').createInputManager>} input
- * @param {{ kind?: string, x?: number, y?: number, z?: number, id?: string, interaction?: object }} [spawn]
+ * @param {{
+ *   kind?: string, x?: number, y?: number, z?: number, id?: string,
+ *   interaction?: object, meshUrl?: string, length?: number, flip?: boolean, rotateY?: number,
+ * }} [spawn]
  */
-export const createVehicle = (engine, physics, materials, player, input, spawn = {}) => {
-    const kind = spawn.kind && PROFILES[spawn.kind] ? spawn.kind : 'car';
-    const spec = PROFILES[kind];
+export const createVehicle = async (engine, physics, materials, player, input, spawn = {}) => {
+    const kind = spawn.kind && PROFILES[spawn.kind] ? spawn.kind : (spawn.meshUrl ? 'truck' : 'car');
+    const spec = { ...PROFILES[kind] };
     const Jolt = physics.Jolt;
     const { bodyInterface, physicsSystem } = physics;
-    const id = spawn.id ?? `vehicle_${kind}`;
+    const id = spawn.id ?? (spawn.meshUrl ? 'vehicle_glb' : `vehicle_${kind}`);
     const x = spawn.x ?? 0;
-    const y = spawn.y ?? spec.spawnY;
     const z = spawn.z ?? -12;
 
+    /** @type {Awaited<ReturnType<typeof loadGlbVehicleModel>> | null} */
+    let glb = null;
+    /** @type {{ x: number, y: number, z: number }[] | null} */
+    let wheelLocals = null;
+
+    if (spawn.meshUrl) {
+        glb = await loadGlbVehicleModel(spawn.meshUrl, {
+            length: spawn.length,
+            flip: spawn.flip,
+            rotateY: spawn.rotateY,
+        });
+        const d = glb.measuredDims;
+        spec.halfLength = d.z * 0.5;
+        spec.halfWidth = d.x * 0.5;
+        spec.halfHeight = Math.max(0.22, d.y * 0.2);
+        if (glb.measuredWheelRadius) spec.wheelRadius = glb.measuredWheelRadius;
+        if (glb.measuredWheelCenters) {
+            const cs = glb.measuredWheelCenters;
+            const sag = 9.81 / ((2 * Math.PI * (spec.suspensionFreq ?? 1)) ** 2);
+            const rest = spec.suspensionMax - sag;
+            wheelLocals = cs.map((c) => ({ x: c.x, y: c.y + rest, z: c.z }));
+            spec.halfWidth = (Math.abs(cs[0].x) + Math.abs(cs[1].x)) * 0.5;
+            spec.wheelOffsetH = (Math.abs(cs[0].z) + Math.abs(cs[2].z)) * 0.5;
+        }
+        spec.enterRadius = Math.max(spec.enterRadius, Math.hypot(spec.halfWidth, spec.halfLength) * 0.85);
+        spec.exitSide = Math.max(spec.exitSide, spec.halfWidth + 1.2);
+    }
+
+    const y = spawn.y ?? (() => {
+        if (!glb?.measuredWheelCenters) return spec.spawnY;
+        const avgCy = glb.measuredWheelCenters.reduce((s, c) => s + c.y, 0) / 4;
+        return spec.wheelRadius - avgCy + 0.08;
+    })();
+
     // ── Physics body ──────────────────────────────────────────────────────────
-    const carBody = buildVehicleBody(Jolt, bodyInterface, spec, x, y, z, kind);
+    const hullKind = glb ? 'car' : kind;
+    const carBody = buildVehicleBody(Jolt, bodyInterface, spec, x, y, z, hullKind);
     bodyInterface.AddBody(carBody.GetID(), Jolt.EActivation_Activate);
 
     // ── Visual mesh ───────────────────────────────────────────────────────────
     const chassis = new THREE.Group();
-    MESH_BUILDERS[kind](chassis, spec, materials);
+    if (glb) {
+        chassis.add(glb.root);
+    } else {
+        MESH_BUILDERS[kind](chassis, spec, materials);
+    }
     const lamps = attachLamps(chassis, materials);
     engine.add(chassis);
     physics.dynamicBodies.push({ id, body: carBody, mesh: chassis });
 
     // ── Vehicle constraint ────────────────────────────────────────────────────
-    const { constraint, controller } = buildVehicleConstraint(Jolt, physicsSystem, carBody, spec);
+    const { constraint, controller } = buildVehicleConstraint(
+        Jolt, physicsSystem, carBody, spec, true, wheelLocals,
+    );
 
     // ── Wheel meshes ──────────────────────────────────────────────────────────
-    const wheelMeshes = buildWheelMeshes(chassis, spec, materials);
+    const wheelMeshes = (glb?.hasModelWheels)
+        ? glb.wheelCarriers
+        : buildWheelMeshes(chassis, spec, materials);
     const wRight = new Jolt.Vec3(0, 1, 0);
     const wUp = new Jolt.Vec3(1, 0, 0);
 
@@ -483,7 +537,7 @@ export const createVehicle = (engine, physics, materials, player, input, spawn =
     let tWRight = null, tWUp = null;
     let trailerLamps = null;
 
-    if (kind === 'kenworth' && spec.trailer) {
+    if (!glb && kind === 'kenworth' && spec.trailer) {
         const tSpec = spec.trailer;
         const hitchGap = 0.4;
         const trailerZ = z - spec.halfLength - tSpec.halfLength - hitchGap;
@@ -586,7 +640,7 @@ export const createVehicle = (engine, physics, materials, player, input, spawn =
     };
 
     const api = {
-        kind, chassis, body: carBody,
+        kind: glb ? 'glb' : kind, chassis, body: carBody,
         enter() { },
         exit() { },
         warmLights(on = true) {
@@ -600,7 +654,7 @@ export const createVehicle = (engine, physics, materials, player, input, spawn =
         body: carBody,
         root: chassis,
         half: [spec.halfWidth, 1.2, spec.halfLength],
-        kind,
+        kind: api.kind,
         enterRadius: spec.enterRadius,
         exitSide: spec.exitSide,
         cameraLift: 0.4,

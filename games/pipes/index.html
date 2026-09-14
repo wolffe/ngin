@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <base href="../../" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ngin — Pipes</title>
+  <link rel="stylesheet" href="./public/styles/sandbox.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.webgpu.js",
+      "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.webgpu.js",
+      "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.tsl.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/",
+      "lil-gui": "https://cdn.jsdelivr.net/npm/lil-gui@0.20/+esm",
+      "jolt-physics": "https://cdn.jsdelivr.net/npm/jolt-physics@1.1.0/dist/jolt-physics.wasm-compat.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="boot" aria-live="polite">
+    <div class="boot-inner">
+      <div class="boot-brand"><span class="boot-word">NGIN</span></div>
+      <p id="boot-status" class="boot-status">Starting game...</p>
+      <div class="boot-bar" aria-hidden="true"><i id="boot-fill"></i></div>
+    </div>
+  </div>
+  <canvas id="canvas" tabindex="0" aria-label="Game"></canvas>
+  <script type="module">
+    import(new URL('./scripts/main.js', location.href).href).catch(error => {
+      console.error(error);
+      document.getElementById('boot-status').textContent = `Failed: ${error.message}`;
+    });
+  </script>
+</body>
+</html>

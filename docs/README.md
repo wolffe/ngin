@@ -14,7 +14,7 @@ See [AGENTS.md](../AGENTS.md) and [new-game.md](./new-game.md) for rules and cha
 | [water-module.md](./water-module.md)             | Buoyancy volumes, pool, boat                               |
 | [interaction-module.md](./interaction-module.md) | Look-at actions, carry, inventory                          |
 | [glb-module.md](./glb-module.md)                 | GLB load, clone, mesh/box colliders, optional carry        |
-| [pbr-module.md](./pbr-module.md)                 | Color-only painterly textures and material loading         |
+| [textures-module.md](./textures-module.md)       | 16px procedural textures and material loading              |
 | [effects-module.md](./effects-module.md)         | Particles, weather, day/night                              |
 | [new-game.md](./new-game.md)                     | Start a new game from the template                         |
 | [ai-prompt.md](./ai-prompt.md)                   | Copy-paste prompt for AI-assisted game work                |

@@ -5,13 +5,8 @@
 
 import * as THREE from 'three/webgpu';
 import { createMappedMaterial } from '../graphics/MaterialLibrary.js';
-import {
-    grassBlockAtlas,
-    applyGrassBlockUVs,
-    dirtTexture,
-    stoneTexture,
-    grassTuftTexture,
-} from '../graphics/ProceduralTextures.js';
+import { applyGrassBlockUVs, grassTuftTexture } from '../graphics/ProceduralTextures.js';
+import { createBlockTextures } from '../graphics/BlockTextures.js';
 
 const UNIT = 1;
 const COLS = 20;
@@ -38,7 +33,7 @@ const fillInstances = (mesh, positions) => {
 /**
  * @param {import('../engine/Engine.js').Engine} engine
  * @param {Awaited<ReturnType<import('../physics/PhysicsWorld.js').createPhysicsWorld>>} physics
- * @param {{ originX?: number, originZ?: number }} [opts]
+ * @param {{ originX?: number, originZ?: number, grassMaterial?: THREE.Material, materials?: ReturnType<import('../graphics/MaterialLibrary.js').createMaterialLibrary> }} [opts]
  */
 export const createVoxelHill = (engine, physics, opts = {}) => {
     const originX = opts.originX ?? -52;
@@ -108,20 +103,39 @@ export const createVoxelHill = (engine, physics, opts = {}) => {
     const cube = new THREE.BoxGeometry(1, 1, 1);
     const grassGeo = cube.clone();
     applyGrassBlockUVs(grassGeo);
-    const layers = [
-        [grassPos, grassGeo, createMappedMaterial(grassBlockAtlas(), 0.92)],
-        [dirtPos, cube, createMappedMaterial(dirtTexture({ size: 16, repeat: 1 }), 0.94)],
-        [stonePos, cube, createMappedMaterial(stoneTexture({ size: 16, repeat: 1 }), 0.9)],
-    ];
+    const fromLib = opts.materials;
+    const blocks = fromLib ? null : createBlockTextures();
+    const grassMats = opts.grassMaterial
+        ? [opts.grassMaterial]
+        : fromLib
+            ? fromLib.pack('grassBlock')
+            : blocks.grassBlock.map((map) => createMappedMaterial(map, 0.92));
+    const dirtMats = fromLib
+        ? fromLib.pack('dirt')
+        : blocks.dirt.map((map) => createMappedMaterial(map, 0.94));
+    const rockMats = fromLib
+        ? fromLib.pack('rock')
+        : blocks.rock.map((map) => createMappedMaterial(map, 0.9));
 
-    for (const [positions, geo, mat] of layers) {
-        if (!positions.length) continue;
-        const mesh = new THREE.InstancedMesh(geo, mat, positions.length);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        fillInstances(mesh, positions);
-        engine.add(mesh);
-    }
+    const place = (positions, geo, mats) => {
+        const buckets = mats.map(() => []);
+        for (const p of positions) {
+            const v = Math.min(mats.length - 1, (hash(p[0] * 1.7, p[2] * 2.3 + p[1]) * mats.length) | 0);
+            buckets[v].push(p);
+        }
+        for (let i = 0; i < mats.length; i++) {
+            if (!buckets[i].length) continue;
+            const mesh = new THREE.InstancedMesh(geo, mats[i], buckets[i].length);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            fillInstances(mesh, buckets[i]);
+            engine.add(mesh);
+        }
+    };
+
+    place(grassPos, grassGeo, grassMats);
+    place(dirtPos, cube, dirtMats);
+    place(stonePos, cube, rockMats);
 
     if (tuftPos.length) {
         const tuft = grassTuftTexture();

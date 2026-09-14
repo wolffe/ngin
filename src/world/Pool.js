@@ -5,12 +5,10 @@
 
 import * as THREE from 'three/webgpu';
 import { createWaterVolume, createWaterSurface } from '../physics/Water.js';
-import { grassTexture } from '../graphics/ProceduralTextures.js';
 import { applyWorldUVs } from '../graphics/WorldUVs.js';
-import { createMappedMaterial } from '../graphics/MaterialLibrary.js';
 
-/** World metres per grass tile — matches the original 80 m ground with repeat 24. */
-const GRASS_TILE = 80 / 24;
+/** World metres per 16px grass tile. */
+const GRASS_TILE = 1;
 
 const addBox = (engine, physics, id, material, x, y, z, hx, hy, hz, tile = null) => {
   const geo = new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2);
@@ -32,6 +30,7 @@ const addBox = (engine, physics, id, material, x, y, z, hx, hy, hz, tile = null)
  *   groundSize?: number, groundY?: number, groundHy?: number,
  *   cx?: number, cz?: number, innerW?: number, innerL?: number,
  *   wall?: number, depth?: number, waterSurfaceY?: number,
+ *   grassMaterial?: THREE.Material, grassTile?: number,
  * }} [opts]
  */
 export const createPoolInGround = (engine, physics, materials, opts = {}) => {
@@ -47,7 +46,8 @@ export const createPoolInGround = (engine, physics, materials, opts = {}) => {
   const depth = opts.depth ?? 1.2;
   const waterSurfaceY = opts.waterSurfaceY ?? -0.08;
 
-  const grass = createMappedMaterial(grassTexture({ size: 16, repeat: 1 }), 0.9);
+  const grass = opts.grassMaterial ?? materials.get('grass');
+  const grassTile = opts.grassTile ?? GRASS_TILE;
 
   const holeW = innerW + wall * 2;
   const holeL = innerL + wall * 2;
@@ -58,19 +58,19 @@ export const createPoolInGround = (engine, physics, materials, opts = {}) => {
 
   const gWestX = (-half + x0) / 2;
   const gWestHx = (x0 - -half) / 2;
-  addBox(engine, physics, 'ground_west', grass, gWestX, groundY, 0, gWestHx, groundHy, half, GRASS_TILE);
+  addBox(engine, physics, 'ground_west', grass, gWestX, groundY, 0, gWestHx, groundHy, half, grassTile);
 
   const gEastX = (x1 + half) / 2;
   const gEastHx = (half - x1) / 2;
-  addBox(engine, physics, 'ground_east', grass, gEastX, groundY, 0, gEastHx, groundHy, half, GRASS_TILE);
+  addBox(engine, physics, 'ground_east', grass, gEastX, groundY, 0, gEastHx, groundHy, half, grassTile);
 
   const gSouthZ = (-half + z0) / 2;
   const gSouthHz = (z0 - -half) / 2;
-  addBox(engine, physics, 'ground_south', grass, cx, groundY, gSouthZ, holeW / 2, groundHy, gSouthHz, GRASS_TILE);
+  addBox(engine, physics, 'ground_south', grass, cx, groundY, gSouthZ, holeW / 2, groundHy, gSouthHz, grassTile);
 
   const gNorthZ = (z1 + half) / 2;
   const gNorthHz = (half - z1) / 2;
-  addBox(engine, physics, 'ground_north', grass, cx, groundY, gNorthZ, holeW / 2, groundHy, gNorthHz, GRASS_TILE);
+  addBox(engine, physics, 'ground_north', grass, cx, groundY, gNorthZ, holeW / 2, groundHy, gNorthHz, grassTile);
 
   const concrete = materials.get('concrete');
   const floorTop = -depth;

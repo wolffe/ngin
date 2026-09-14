@@ -3,7 +3,7 @@
 Code-first Three.js WebGPU engine with a protected reference sandbox and independent
 games. No Node or build step is required to play; Node 24 runs authoring checks.
 
-Visual target: Roblox/Minecraft-style worlds. Prioritize responsive gameplay, simple geometry and painterly color textures over photorealistic rendering. Optional effects must earn their frame-time cost.
+Visual target: Roblox/Minecraft-style worlds. Prioritize responsive gameplay, simple geometry and 16px procedural textures over photorealistic rendering. Optional effects must earn their frame-time cost.
 
 ## Run
 
@@ -38,7 +38,7 @@ See **[docs/index.html](./docs/index.html)** for what game creators can prompt. 
 - [Water module](./docs/water-module.md) — buoyancy, pool, boat
 - [Interaction](./docs/interaction-module.md) — E / F / G, carry, inventory
 - [Effects](./docs/effects-module.md) — particles, weather, day/night
-- [Textures](./docs/pbr-module.md) — color-only painterly materials
+- [Textures](./docs/textures-module.md) — 16px procedural materials
 - [New game](./docs/new-game.md) - copy a complete starter and verify isolation
 - [AI prompt](./docs/ai-prompt.md) — copy-paste for assisted development
 

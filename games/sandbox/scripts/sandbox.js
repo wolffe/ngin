@@ -7,7 +7,7 @@ import { createPhysicsWorld } from '../../../src/physics/PhysicsWorld.js';
 import { createPushables } from '../../../src/physics/Pushables.js';
 import { createWalkWedge } from '../../../src/physics/Wedge.js';
 import { createEnvironment } from '../../../src/graphics/Environment.js';
-import { createMaterialLibrary, loadPainterlyMaterial } from '../../../src/graphics/MaterialLibrary.js';
+import { createMaterialLibrary } from '../../../src/graphics/MaterialLibrary.js';
 import { createWeather } from '../../../src/graphics/Weather.js';
 import { createAO } from '../../../src/graphics/AO.js';
 import { createAssetManager } from '../../../src/assets/AssetManager.js';
@@ -25,7 +25,7 @@ import { createFountain } from '../../../src/world/Fountain.js';
 import { createTrampoline } from '../../../src/world/Trampoline.js';
 import { createFan } from '../../../src/world/Fan.js';
 import { createVoxelHill } from '../../../src/world/VoxelHill.js';
-import { applyWorldUVs } from '../../../src/graphics/WorldUVs.js';
+import { applyGrassBlockUVs } from '../../../src/graphics/ProceduralTextures.js';
 
 const DPR_KEY = 'ngin.pixelRatio';
 const DPR_STEPS = [0.85, 1, 1.25, 1.5, 2];
@@ -81,28 +81,67 @@ export const createSandbox = async (canvas, opts = {}) => {
         innerW: 36,
         innerL: 22,
         depth: 1.4,
+        grassTile: 1,
     });
 
-    createVoxelHill(engine, physics, { originX: -58, originZ: 42 });
+    createVoxelHill(engine, physics, { originX: -58, originZ: 42, materials });
 
-    boot('Loading textures…', 40);
-    const painterlyTextures = ['Worn Crate.png', 'Mossy Wooden Planks.png', 'CobbleStoneGreyBrown.png', 'PlasterMossy.png'];
-    const painterlyMaterials = await Promise.all(
-        painterlyTextures.map(filename => loadPainterlyMaterial(assets, filename))
-    );
-    const boxes = [
-        [5, 1, 5], [-6, 1, 4], [3, 1, -7], [-4, 1.5, -5], [0, 0.75, 10],
-        [18, 1, -12], [-20, 1.2, 22], [22, 0.8, 8],
+    const UNIT = 1;
+    const cubeGeo = new THREE.BoxGeometry(UNIT, UNIT, UNIT);
+    const grassGeo = cubeGeo.clone();
+    applyGrassBlockUVs(grassGeo);
+    const dummy = new THREE.Object3D();
+    const kinds = [
+        { geo: cubeGeo, mats: [materials.get('wood')] },
+        { geo: cubeGeo, mats: [materials.get('stone')] },
+        { geo: cubeGeo, mats: [materials.get('brick')] },
+        { geo: grassGeo, mats: materials.pack('grassBlock') },
+        { geo: cubeGeo, mats: materials.pack('rustyMetal') },
+        { geo: cubeGeo, mats: materials.pack('dirt') },
+        { geo: cubeGeo, mats: materials.pack('rock') },
+        { geo: grassGeo, mats: materials.pack('grassBlock') },
     ];
-    boxes.forEach(([x, h, z], i) => {
-        const geo = new THREE.BoxGeometry(2, h * 2, 2);
-        applyWorldUVs(geo, 2, { x, y: h, z });
-        const mesh = new THREE.Mesh(geo, painterlyMaterials[i % painterlyMaterials.length]);
-        mesh.position.set(x, h, z);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        engine.add(mesh);
-        physics.addStaticBox(`box_${i}`, { x, y: h, z }, [1, h, 1], mesh);
+    const stacks = [
+        [5, 2, 5], [-6, 2, 4], [3, 2, -7], [-4, 3, -5], [0, 2, 10],
+        [18, 2, -12], [-20, 2, 22], [22, 2, 8],
+    ];
+    stacks.forEach(([x, layers, z], i) => {
+        const ox = Math.round(x);
+        const oz = Math.round(z);
+        const { geo, mats } = kinds[i % kinds.length];
+        const w = 2;
+        const d = 2;
+        const buckets = mats.map(() => []);
+        for (let iz = 0; iz < d; iz++) {
+            for (let ix = 0; ix < w; ix++) {
+                const cx = ox + ix;
+                const cz = oz + iz;
+                physics.addStaticBox(
+                    `box_${i}_${ix}_${iz}`,
+                    { x: cx, y: (layers * UNIT) / 2, z: cz },
+                    [UNIT / 2, (layers * UNIT) / 2, UNIT / 2]
+                );
+                for (let iy = 0; iy < layers; iy++) {
+                    const v = (ix + iz + iy) % mats.length;
+                    buckets[v].push([cx, iy * UNIT + UNIT / 2, cz]);
+                }
+            }
+        }
+        buckets.forEach((positions, v) => {
+            if (!positions.length) return;
+            const mesh = new THREE.InstancedMesh(geo, mats[v], positions.length);
+            let n = 0;
+            for (const p of positions) {
+                dummy.position.set(p[0], p[1], p[2]);
+                dummy.updateMatrix();
+                mesh.setMatrixAt(n++, dummy.matrix);
+            }
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.instanceMatrix.needsUpdate = true;
+            mesh.computeBoundingSphere();
+            engine.add(mesh);
+        });
     });
 
     const rampMat = materials.get('teal');
@@ -159,11 +198,18 @@ export const createSandbox = async (canvas, opts = {}) => {
 
     const vehicleSpawn = { interaction: use.interaction };
     boot('Spawning vehicles…', 72);
-    const rides = [
+    const rides = await Promise.all([
         createVehicle(engine, physics, materials, player, input, { kind: 'car', x: 0, y: 1.15, z: -12, ...vehicleSpawn }),
         createVehicle(engine, physics, materials, player, input, { kind: 'truck', x: 9, y: 1.5, z: -12, ...vehicleSpawn }),
         createVehicle(engine, physics, materials, player, input, { kind: 'bus', x: -10, y: 1.6, z: -12, ...vehicleSpawn }),
         createVehicle(engine, physics, materials, player, input, { kind: 'kenworth', x: -20, y: 1.7, z: -12, ...vehicleSpawn }),
+        createVehicle(engine, physics, materials, player, input, {
+            id: 'ranger',
+            meshUrl: './assets/models/vehicles/ford_ranger_offroad.glb',
+            x: 12,
+            z: -12,
+            ...vehicleSpawn,
+        }),
         createBoat(engine, physics, materials, player, input, {
             kind: 'fishing',
             id: 'pool_fishing',
@@ -180,7 +226,7 @@ export const createSandbox = async (canvas, opts = {}) => {
             z: pool.cz - 4,
             interaction: use.interaction,
         }),
-    ];
+    ]);
 
     const beachMat = new THREE.MeshStandardNodeMaterial({
         color: 0xe23b3b,

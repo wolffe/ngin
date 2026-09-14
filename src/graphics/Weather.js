@@ -1,23 +1,53 @@
 /**
  * Camera-local rain (vertical streaks) and snow (camera-facing flakes).
- * Instanced meshes so they stay visible under WebGPU; points were too small.
+ * Small nearest-filtered pixel-art maps; the framebuffer stays full resolution.
  */
 
 import * as THREE from 'three/webgpu';
-import { color as tslColor, float } from 'three/tsl';
+import { color as tslColor, texture as tslTexture } from 'three/tsl';
 
 const dummy = new THREE.Object3D();
+const yaw = new THREE.Euler();
 const RANGE2 = 20 * 20;
 
-const unlit = (hex, opacity) => {
+const pixelTex = (w, h, paint) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  paint(canvas.getContext('2d'), w, h);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+};
+
+const rainMap = pixelTex(2, 8, (ctx) => {
+  ctx.fillStyle = '#ffffff';
+  for (let y = 0; y < 8; y++) {
+    if (y === 3 || y === 7) continue;
+    ctx.fillRect(1, y, 1, 1);
+  }
+});
+
+const snowMap = pixelTex(8, 8, (ctx) => {
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(3, 2, 2, 1);
+  ctx.fillRect(2, 3, 4, 2);
+  ctx.fillRect(3, 5, 2, 1);
+});
+
+const pixelSprite = (map, hex) => {
   const mat = new THREE.MeshBasicNodeMaterial({
     transparent: true,
     depthWrite: false,
     fog: true,
     side: THREE.DoubleSide,
+    alphaTest: 0.5,
   });
-  mat.colorNode = tslColor(hex);
-  mat.opacityNode = float(opacity);
+  mat.colorNode = tslTexture(map).mul(tslColor(hex));
   return mat;
 };
 
@@ -31,6 +61,7 @@ const unlit = (hex, opacity) => {
  *   integrate: (o: {x:number,y:number,z:number}, vel: {x:number,y:number,z:number}, dt: number, age: number) => void,
  *   life: [number, number],
  *   billboard?: boolean,
+ *   yawBillboard?: boolean,
  * }} spec
  */
 const createInstancedField = (engine, spec) => {
@@ -112,7 +143,10 @@ const createInstancedField = (engine, spec) => {
       }
       dummy.position.set(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
       if (spec.billboard) dummy.quaternion.copy(camQ);
-      else dummy.quaternion.identity();
+      else if (spec.yawBillboard) {
+        yaw.setFromQuaternion(camQ, 'YXZ');
+        dummy.rotation.set(0, yaw.y, 0);
+      } else dummy.quaternion.identity();
       dummy.scale.set(1, 1, 1);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
@@ -137,8 +171,9 @@ const createInstancedField = (engine, spec) => {
 export const createWeather = (engine) => {
   const rain = createInstancedField(engine, {
     count: 1100,
-    geo: new THREE.BoxGeometry(0.028, 1.12, 0.028),
-    mat: unlit(0xb7d4ee, 0.62),
+    geo: new THREE.PlaneGeometry(0.08, 1.05),
+    mat: pixelSprite(rainMap, 0xb7d4ee),
+    yawBillboard: true,
     life: [0.45, 0.9],
     spawn: (o, vel, cam) => {
       o.x = cam.x + (Math.random() - 0.5) * 32;
@@ -157,8 +192,8 @@ export const createWeather = (engine) => {
 
   const snow = createInstancedField(engine, {
     count: 650,
-    geo: new THREE.PlaneGeometry(0.26, 0.26),
-    mat: unlit(0xe8f0ff, 0.92),
+    geo: new THREE.PlaneGeometry(0.22, 0.22),
+    mat: pixelSprite(snowMap, 0xe8f0ff),
     billboard: true,
     life: [3.5, 6],
     spawn: (o, vel, cam) => {

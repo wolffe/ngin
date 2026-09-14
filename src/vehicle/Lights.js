@@ -47,6 +47,27 @@ export const attachLamps = (root, materials) => {
         else if (obj.material === tailShared) fixtures.push(['tail', obj]);
     });
 
+    // GLB bodies often lack headlight/taillight shared mats — plant proxies from bounds.
+    if (fixtures.length === 0) {
+        const bb = new THREE.Box3().setFromObject(root);
+        const cx = (bb.min.x + bb.max.x) * 0.5;
+        const y = bb.min.y + (bb.max.y - bb.min.y) * 0.35;
+        const zF = bb.max.z - 0.05;
+        const zR = bb.min.z + 0.05;
+        const xOff = Math.max(0.35, (bb.max.x - bb.min.x) * 0.28);
+        const mk = (mat, px, py, pz) => {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.04), mat);
+            m.position.set(px, py, pz);
+            m.visible = false;
+            root.add(m);
+            return m;
+        };
+        fixtures.push(['head', mk(headShared, cx + xOff, y, zF)]);
+        fixtures.push(['head', mk(headShared, cx - xOff, y, zF)]);
+        fixtures.push(['tail', mk(tailShared, cx + xOff, y, zR)]);
+        fixtures.push(['tail', mk(tailShared, cx - xOff, y, zR)]);
+    }
+
     for (const [kind, obj] of fixtures) {
         if (kind === 'head') {
             obj.material = headLamp;
