@@ -1,18 +1,12 @@
 import * as THREE from 'three/webgpu';
 import { createBlockTextures } from './BlockTextures.js';
-import { brickTexture, stoneTexture, woodTexture } from './ProceduralTextures.js';
 
 const solids = () => ({
-    concrete: { color: 0x888888, roughness: 0.85, metalness: 0.0, texture: stoneTexture },
-    asphalt: { color: 0x333333, roughness: 0.95, metalness: 0.0 },
-    metal: { color: 0xaaaaaa, roughness: 0.35, metalness: 0.9 },
-    wood: { color: 0x8b6914, roughness: 0.75, metalness: 0.0, texture: woodTexture },
     orange: { color: 0xe67a22, roughness: 0.55, metalness: 0.08 },
-    brick: { color: 0x8c5648, roughness: 0.9, metalness: 0.0, texture: brickTexture },
     teal: { color: 0x2a8f9e, roughness: 0.7, metalness: 0.05 },
     pushable: { color: 0x6bbf4e, roughness: 0.65, metalness: 0.05 },
     glass: { color: 0xaaccff, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.4 },
-    glassDark: { color: 0x223344, roughness: 0.05, metalness: 0.15, transparent: true, opacity: 0.55 },
+    glassDark: { color: 0x334438, roughness: 0.08, metalness: 0.15, transparent: true, opacity: 0.55 },
     water: { color: 0x2266aa, roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.7 },
     red: { color: 0xcc2222, roughness: 0.45, metalness: 0.15 },
     blue: { color: 0x2244aa, roughness: 0.45, metalness: 0.15 },
@@ -50,6 +44,23 @@ export const createMappedMaterial = (map, roughness = 0.9, extras = {}) => {
     return mat;
 };
 
+const PACK_FINISH = {
+    grass: [0.9, 0],
+    dirt: [0.95, 0],
+    rock: [0.88, 0],
+    rustyMetal: [0.55, 0.42],
+    grassBlock: [0.92, 0],
+    wood: [0.75, 0],
+    brick: [0.9, 0],
+    stone: [0.88, 0],
+    concrete: [0.92, 0],
+    asphalt: [0.96, 0],
+    metal: [0.38, 0.72],
+    plaster: [0.9, 0],
+    corrugated: [0.42, 0.55],
+    paintedMetal: [0.5, 0.35],
+};
+
 /**
  * @returns {{
  *   get: (name: string, variant?: number) => THREE.MeshStandardNodeMaterial,
@@ -64,33 +75,31 @@ export const createMaterialLibrary = () => {
     const packs = new Map();
 
     for (const [name, def] of Object.entries(solids())) {
-        const map = def.texture ? def.texture({ size: 64, repeat: 1 }) : null;
         const mat = new THREE.MeshStandardNodeMaterial({
-            color: map ? 0xffffff : def.color,
+            color: def.color,
             roughness: def.roughness,
             metalness: def.metalness,
             transparent: def.transparent ?? false,
             opacity: def.opacity ?? 1,
             fog: true,
         });
-        if (map) mat.map = map;
         singles.set(name, mat);
     }
 
     const blocks = createBlockTextures({ size: 64, repeat: 1 });
-    packs.set('grass', blocks.grass.map((map) => mapped(map, 0.9)));
-    packs.set('dirt', blocks.dirt.map((map) => mapped(map, 0.95)));
-    packs.set('rock', blocks.rock.map((map) => mapped(map, 0.88)));
-    packs.set('rustyMetal', blocks.rustyMetal.map((map) => mapped(map, 0.55, 0.42)));
-    packs.set('grassBlock', blocks.grassBlock.map((map) => mapped(map, 0.92)));
-
-    singles.set('asphalt', mapped(blocks.rock[0], 0.95));
+    for (const [name, maps] of Object.entries(blocks)) {
+        const [roughness, metalness] = PACK_FINISH[name] ?? [0.9, 0];
+        packs.set(name, maps.map((map) => mapped(map, roughness, metalness)));
+    }
 
     return {
-        get: (name, variant = 0) => {
+        get: (name, variant) => {
             const pack = packs.get(name);
-            if (pack) return pack[variant % pack.length];
-            return singles.get(name) ?? singles.get('concrete');
+            if (pack) {
+                const i = variant == null ? (Math.random() * pack.length) | 0 : ((variant % pack.length) + pack.length) % pack.length;
+                return pack[i];
+            }
+            return singles.get(name) ?? packs.get('concrete')[0];
         },
         pack: (name) => packs.get(name) ?? null,
         list: () => [...new Set([...singles.keys(), ...packs.keys()])],

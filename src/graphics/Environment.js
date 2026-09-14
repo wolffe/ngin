@@ -123,8 +123,10 @@ export const createEnvironment = (engine) => {
 
     const apply = (presetName) => {
         const preset = environmentPresets[presetName] ?? environmentPresets['default-overcast'];
-        skybox = preset.skybox ? (skybox ?? skyboxTexture({ size: 512 })) : null;
+        skybox = preset.skybox ? (skybox ?? skyboxTexture({ size: 64 })) : null;
         engine.scene.background = preset.skybox ? skybox : new THREE.Color(preset.background);
+        engine.scene.backgroundBlurriness = 0;
+        engine.scene.backgroundIntensity = 1;
 
         if (preset.fog) writeFog(preset.fog.color, preset.fog.near, preset.fog.far);
         else engine.scene.fog = null;

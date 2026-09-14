@@ -10,16 +10,54 @@ import { applyWorldUVs } from '../graphics/WorldUVs.js';
 /** World metres per 16px grass tile. */
 const GRASS_TILE = 1;
 
-const addBox = (engine, physics, id, material, x, y, z, hx, hy, hz, tile = null) => {
+const addBox = (engine, physics, id, material, x, y, z, hx, hy, hz, tile = null, visible = true) => {
   const geo = new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2);
   if (tile != null) applyWorldUVs(geo, tile, { x, y, z });
   const mesh = new THREE.Mesh(geo, material);
   mesh.position.set(x, y, z);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-  engine.add(mesh);
-  physics.addStaticBox(id, { x, y, z }, [hx, hy, hz], mesh);
+  if (visible) engine.add(mesh);
+  physics.addStaticBox(id, { x, y, z }, [hx, hy, hz], visible ? mesh : undefined);
   return mesh;
+};
+
+const hash2 = (x, z) => {
+  const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
+  return s - Math.floor(s);
+};
+
+const coverGrass = (engine, materials, groundY, groundHy, half, hole) => {
+  const pack = materials.pack('grass');
+  if (!pack?.length) return;
+  const geo = new THREE.BoxGeometry(1, groundHy * 2, 1);
+  const dummy = new THREE.Object3D();
+  const buckets = pack.map(() => []);
+  const x0 = Math.floor(-half);
+  const x1 = Math.ceil(half) - 1;
+  const z0 = Math.floor(-half);
+  const z1 = Math.ceil(half) - 1;
+  for (let ix = x0; ix <= x1; ix++) {
+    for (let iz = z0; iz <= z1; iz++) {
+      if (ix + 0.5 > hole.x0 && ix + 0.5 < hole.x1 && iz + 0.5 > hole.z0 && iz + 0.5 < hole.z1) continue;
+      const v = Math.min(pack.length - 1, (hash2(ix, iz) * pack.length) | 0);
+      buckets[v].push([ix + 0.5, groundY, iz + 0.5]);
+    }
+  }
+  buckets.forEach((positions, i) => {
+    if (!positions.length) return;
+    const mesh = new THREE.InstancedMesh(geo, pack[i], positions.length);
+    let n = 0;
+    for (const p of positions) {
+      dummy.position.set(p[0], p[1], p[2]);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(n++, dummy.matrix);
+    }
+    mesh.receiveShadow = true;
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+    engine.add(mesh);
+  });
 };
 
 /**
@@ -58,19 +96,21 @@ export const createPoolInGround = (engine, physics, materials, opts = {}) => {
 
   const gWestX = (-half + x0) / 2;
   const gWestHx = (x0 - -half) / 2;
-  addBox(engine, physics, 'ground_west', grass, gWestX, groundY, 0, gWestHx, groundHy, half, grassTile);
+  addBox(engine, physics, 'ground_west', grass, gWestX, groundY, 0, gWestHx, groundHy, half, grassTile, false);
 
   const gEastX = (x1 + half) / 2;
   const gEastHx = (half - x1) / 2;
-  addBox(engine, physics, 'ground_east', grass, gEastX, groundY, 0, gEastHx, groundHy, half, grassTile);
+  addBox(engine, physics, 'ground_east', grass, gEastX, groundY, 0, gEastHx, groundHy, half, grassTile, false);
 
   const gSouthZ = (-half + z0) / 2;
   const gSouthHz = (z0 - -half) / 2;
-  addBox(engine, physics, 'ground_south', grass, cx, groundY, gSouthZ, holeW / 2, groundHy, gSouthHz, grassTile);
+  addBox(engine, physics, 'ground_south', grass, cx, groundY, gSouthZ, holeW / 2, groundHy, gSouthHz, grassTile, false);
 
   const gNorthZ = (z1 + half) / 2;
   const gNorthHz = (half - z1) / 2;
-  addBox(engine, physics, 'ground_north', grass, cx, groundY, gNorthZ, holeW / 2, groundHy, gNorthHz, grassTile);
+  addBox(engine, physics, 'ground_north', grass, cx, groundY, gNorthZ, holeW / 2, groundHy, gNorthHz, grassTile, false);
+
+  coverGrass(engine, materials, groundY, groundHy, half, { x0, x1, z0, z1 });
 
   const concrete = materials.get('concrete');
   const floorTop = -depth;

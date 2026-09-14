@@ -2,17 +2,19 @@
 
 Nearest-filtered maps generated at runtime. No image packs.
 
-Block sets (three shades each) live in `src/graphics/BlockTextures.js`:
+Block sets (three shades each) live in `src/graphics/BlockTextures.js`. `materials.get('grass')` picks a random shade; pass an index to pin one.
 
 ```js
 import { createBlockTextures } from "./graphics/BlockTextures.js";
 import { createMaterialLibrary } from "./graphics/MaterialLibrary.js";
 
-const { grass, dirt, rock, rustyMetal, grassBlock } = createBlockTextures();
+const { grass, dirt, rock, rustyMetal, grassBlock, concrete, asphalt, metal } = createBlockTextures();
 const materials = createMaterialLibrary();
-materials.get("grass");      // shade 0
-materials.get("grass", 2);   // shade 2
-materials.pack("rustyMetal"); // [0, 1, 2]
+materials.get("grass");
+materials.get("concrete", 1);
+materials.pack("paintedMetal");
 ```
 
-`grassBlock` is the dirt cube with a grass top and ragged grass sides. Generators for wood, brick, stone, and the noise helpers stay in `ProceduralTextures.js`.
+Packs: grass, dirt, rock, rustyMetal, grassBlock, wood, brick, stone, concrete, asphalt, metal, plaster, corrugated, paintedMetal.
+
+`grassBlock` is dirt with a grass top and ragged 16-pixel grass sides.

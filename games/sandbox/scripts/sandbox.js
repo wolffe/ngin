@@ -25,6 +25,7 @@ import { createFountain } from '../../../src/world/Fountain.js';
 import { createTrampoline } from '../../../src/world/Trampoline.js';
 import { createFan } from '../../../src/world/Fan.js';
 import { createVoxelHill } from '../../../src/world/VoxelHill.js';
+import { createStalkerYard } from '../../../src/world/StalkerYard.js';
 import { applyGrassBlockUVs } from '../../../src/graphics/ProceduralTextures.js';
 
 const DPR_KEY = 'ngin.pixelRatio';
@@ -75,7 +76,7 @@ export const createSandbox = async (canvas, opts = {}) => {
     environment.load('default-overcast');
 
     const pool = createPoolInGround(engine, physics, materials, {
-        groundSize: 128,
+        groundSize: 180,
         cx: 28,
         cz: 34,
         innerW: 36,
@@ -85,6 +86,7 @@ export const createSandbox = async (canvas, opts = {}) => {
     });
 
     createVoxelHill(engine, physics, { originX: -58, originZ: 42, materials });
+    createStalkerYard(engine, physics, materials, { x: 48, z: -70 });
 
     const UNIT = 1;
     const cubeGeo = new THREE.BoxGeometry(UNIT, UNIT, UNIT);
@@ -92,9 +94,9 @@ export const createSandbox = async (canvas, opts = {}) => {
     applyGrassBlockUVs(grassGeo);
     const dummy = new THREE.Object3D();
     const kinds = [
-        { geo: cubeGeo, mats: [materials.get('wood')] },
-        { geo: cubeGeo, mats: [materials.get('stone')] },
-        { geo: cubeGeo, mats: [materials.get('brick')] },
+        { geo: cubeGeo, mats: materials.pack('wood') },
+        { geo: cubeGeo, mats: materials.pack('stone') },
+        { geo: cubeGeo, mats: materials.pack('brick') },
         { geo: grassGeo, mats: materials.pack('grassBlock') },
         { geo: cubeGeo, mats: materials.pack('rustyMetal') },
         { geo: cubeGeo, mats: materials.pack('dirt') },
@@ -202,6 +204,7 @@ export const createSandbox = async (canvas, opts = {}) => {
         createVehicle(engine, physics, materials, player, input, { kind: 'car', x: 0, y: 1.15, z: -12, ...vehicleSpawn }),
         createVehicle(engine, physics, materials, player, input, { kind: 'truck', x: 9, y: 1.5, z: -12, ...vehicleSpawn }),
         createVehicle(engine, physics, materials, player, input, { kind: 'bus', x: -10, y: 1.6, z: -12, ...vehicleSpawn }),
+        createVehicle(engine, physics, materials, player, input, { kind: 'bus', id: 'yard_bus', x: 66, y: 1.6, z: -78, ...vehicleSpawn }),
         createVehicle(engine, physics, materials, player, input, { kind: 'kenworth', x: -20, y: 1.7, z: -12, ...vehicleSpawn }),
         createVehicle(engine, physics, materials, player, input, {
             id: 'ranger',

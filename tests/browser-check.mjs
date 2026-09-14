@@ -368,7 +368,7 @@ try {
             size: map.image.width === 64 && map.image.height === 64,
             nearest: map.minFilter === THREE.NearestFilter && map.magFilter === THREE.NearestFilter,
             libraryMap: grass.map != null,
-            packs: blocks.grass.length === 3 && blocks.dirt.length === 3 && blocks.rock.length === 3 && blocks.rustyMetal.length === 3 && blocks.grassBlock.length === 3,
+            packs: blocks.grass.length === 3 && blocks.dirt.length === 3 && blocks.rock.length === 3 && blocks.rustyMetal.length === 3 && blocks.grassBlock.length === 3 && blocks.concrete.length === 3 && blocks.asphalt.length === 3 && blocks.metal.length === 3,
             rusty: library.pack('rustyMetal')?.length === 3,
             noPacks: !resources.some(url => url.includes('/assets/textures/32px/') || url.includes('/assets/textures/painterly/')),
           };
