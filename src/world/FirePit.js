@@ -3,7 +3,7 @@
  */
 
 import * as THREE from 'three/webgpu';
-import { createParticleEmitter } from '../graphics/Particles.js';
+import { createEffect } from '../graphics/Particles.js';
 
 /**
  * @param {import('../engine/Engine.js').Engine} engine
@@ -42,9 +42,10 @@ export const createFirePit = (engine, physics, materials, opts = {}) => {
   engine.add(group);
   physics.addStaticBox('firepit', { x, y: 0.12, z }, [0.5, 0.12, 0.5], group);
 
-  const fire = createParticleEmitter(engine, { type: 'fire', position: { x, y: 0.22, z } });
-  const sparks = createParticleEmitter(engine, { type: 'sparks', position: { x, y: 0.3, z } });
-  const smoke = createParticleEmitter(engine, { type: 'smoke', position: { x, y: 0.55, z } });
+  const fx = createEffect(engine, 'campfire', { position: { x, y: 0.22, z }, physics });
+  const fire = fx.emitters[0];
+  const sparks = fx.emitters[2];
+  const smoke = fx.emitters[1];
 
   const light = new THREE.PointLight(0xff7a22, 2.2, 16);
   light.position.set(x, 0.7, z);

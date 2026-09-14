@@ -1,12 +1,10 @@
 /**
- * CPU particles — camera-facing quads.
- *
- * Types: fire, smoke, sparks, spray (hose), dust (tires), wake (boats).
- * Canvas disc for now; pass `map` when you have a texture.
+ * CPU particles — camera-facing quads driven by named effect rows.
  */
 
 import * as THREE from 'three/webgpu';
 import { color as tslColor, rangeFogFactor, texture as tslTexture, uniform } from 'three/tsl';
+import { EFFECTS } from './ParticleEffects.js';
 
 const fogNear = uniform(80).onRenderUpdate(({ scene }) => (scene.fog && scene.fog.near) || 1e6);
 const fogFar = uniform(260).onRenderUpdate(({ scene }) => (scene.fog && scene.fog.far) || 1e6);
@@ -14,6 +12,9 @@ const fogFade = rangeFogFactor(fogNear, fogFar).oneMinus();
 
 const dummy = new THREE.Object3D();
 const plane = new THREE.PlaneGeometry(1, 1);
+const GRAVITY = 18;
+const velDir = new THREE.Vector3();
+const camInv = new THREE.Quaternion();
 
 let discTex = null;
 const discTexture = () => {
@@ -37,173 +38,80 @@ const discTexture = () => {
   return discTex;
 };
 
-const PRESETS = {
-  fire: {
-    count: 40,
-    color: 0xff7a1a,
-    additive: true,
-    life: [0.5, 1.05],
-    size0: 0.4,
-    size1: 1.85,
-    spawn: (o, vel) => {
-      o.x += (Math.random() - 0.5) * 0.3;
-      o.y += Math.random() * 0.08;
-      o.z += (Math.random() - 0.5) * 0.3;
-      vel.x = (Math.random() - 0.5) * 0.22;
-      vel.y = 0.65 + Math.random() * 1.05;
-      vel.z = (Math.random() - 0.5) * 0.22;
-    },
-    integrate: (o, vel, dt) => {
-      o.x += vel.x * dt;
-      o.y += vel.y * dt;
-      o.z += vel.z * dt;
-    },
-  },
-  smoke: {
-    count: 36,
-    color: 0x7a7a7a,
-    additive: false,
-    life: [1.5, 2.8],
-    size0: 0.55,
-    size1: 2.6,
-    spawn: (o, vel) => {
-      o.x += (Math.random() - 0.5) * 0.28;
-      o.y += 0.35;
-      o.z += (Math.random() - 0.5) * 0.28;
-      vel.x = (Math.random() - 0.5) * 0.2;
-      vel.y = 0.4 + Math.random() * 0.5;
-      vel.z = (Math.random() - 0.5) * 0.2;
-    },
-    integrate: (o, vel, dt) => {
-      o.x += vel.x * dt;
-      o.y += vel.y * dt;
-      o.z += vel.z * dt;
-    },
-  },
-  sparks: {
-    count: 50,
-    color: 0xffcc55,
-    additive: true,
-    life: [0.25, 0.7],
-    size0: 0.07,
-    size1: 0.04,
-    spawn: (o, vel) => {
-      o.x += (Math.random() - 0.5) * 0.2;
-      o.y += 0.2;
-      o.z += (Math.random() - 0.5) * 0.2;
-      vel.x = (Math.random() - 0.5) * 4;
-      vel.y = 2 + Math.random() * 4;
-      vel.z = (Math.random() - 0.5) * 4;
-    },
-    integrate: (o, vel, dt) => {
-      vel.y -= 12 * dt;
-      o.x += vel.x * dt;
-      o.y += vel.y * dt;
-      o.z += vel.z * dt;
-    },
-  },
-  spray: {
-    count: 70,
-    color: 0xc8e8ff,
-    additive: false,
-    life: [0.4, 0.9],
-    size0: 0.08,
-    size1: 0.14,
-    spawn: (o, vel) => {
-      o.x += (Math.random() - 0.5) * 0.12;
-      o.z += (Math.random() - 0.5) * 0.12;
-      vel.x = (Math.random() - 0.5) * 0.6;
-      vel.y = 3.5 + Math.random() * 1.5;
-      vel.z = (Math.random() - 0.5) * 0.6;
-    },
-    integrate: (o, vel, dt) => {
-      vel.y -= 9 * dt;
-      o.x += vel.x * dt;
-      o.y += vel.y * dt;
-      o.z += vel.z * dt;
-    },
-  },
-  dust: {
-    count: 48,
-    color: 0xc4a574,
-    additive: false,
-    life: [0.45, 0.95],
-    size0: 0.32,
-    size1: 1.35,
-    spawn: (o, vel) => {
-      o.x += (Math.random() - 0.5) * 0.18;
-      o.z += (Math.random() - 0.5) * 0.18;
-      vel.x = (Math.random() - 0.5) * 0.7;
-      vel.y = 0.35 + Math.random() * 0.65;
-      vel.z = (Math.random() - 0.5) * 0.7;
-    },
-    integrate: (o, vel, dt) => {
-      vel.x *= Math.max(0, 1 - 1.4 * dt);
-      vel.z *= Math.max(0, 1 - 1.4 * dt);
-      vel.y -= 0.8 * dt;
-      o.x += vel.x * dt;
-      o.y += vel.y * dt;
-      o.z += vel.z * dt;
-    },
-  },
-  wake: {
-    count: 64,
-    color: 0xe8f4ff,
-    additive: true,
-    life: [0.35, 0.8],
-    size0: 0.1,
-    size1: 0.48,
-    spawn: (o, vel) => {
-      o.x += (Math.random() - 0.5) * 0.16;
-      vel.x = (Math.random() - 0.5) * 1.6;
-      vel.y = 0.7 + Math.random() * 1.8;
-      vel.z = (Math.random() - 0.5) * 1.6;
-    },
-    integrate: (o, vel, dt) => {
-      vel.y -= 8 * dt;
-      o.x += vel.x * dt;
-      o.y += vel.y * dt;
-      o.z += vel.z * dt;
-    },
-  },
+const jitter = (span) => (Math.random() * 2 - 1) * span;
+
+const mixHex = (a, b) => {
+  if (b == null) return a;
+  const ar = (a >> 16) & 255;
+  const ag = (a >> 8) & 255;
+  const ab = a & 255;
+  const br = (b >> 16) & 255;
+  const bg = (b >> 8) & 255;
+  const bb = b & 255;
+  return (((ar + br) >> 1) << 16) | (((ag + bg) >> 1) << 8) | ((ab + bb) >> 1);
+};
+
+const resolveSpec = (opts) => {
+  if (opts.spec) return opts.spec;
+  const rows = EFFECTS[opts.type];
+  if (rows?.length) return rows[0];
+  return EFFECTS.spray[0];
 };
 
 /**
  * @param {import('../engine/Engine.js').Engine} engine
  * @param {{
  *   type?: string,
+ *   spec?: object,
  *   position?: {x:number,y:number,z:number},
  *   count?: number,
  *   enabled?: boolean,
  *   rate?: number,
  *   map?: THREE.Texture,
+ *   physics?: object,
  *   getOrigin?: () => {x:number,y:number,z:number},
  *   getDrift?: () => {x:number,y:number,z:number},
  * }} [opts]
  */
 export const createParticleEmitter = (engine, opts = {}) => {
-  const type = PRESETS[opts.type] ? opts.type : 'spray';
-  const preset = PRESETS[type];
-  const count = opts.count ?? preset.count;
+  const spec = resolveSpec(opts);
+  const count = Math.max(1, opts.count ?? spec.count ?? 32);
   const origin = { ...(opts.position ?? { x: 0, y: 0, z: 0 }) };
   let enabled = opts.enabled ?? true;
-  let rate = opts.rate ?? 1;
+  let rate = opts.rate ?? (spec.burst ? 0 : (spec.rate ?? 1));
+  const physics = opts.physics ?? engine.get?.('physics') ?? null;
   let getOrigin = opts.getOrigin ?? null;
   let getDrift = opts.getDrift ?? null;
-  const avgLife = (preset.life[0] + preset.life[1]) * 0.5;
+  const life0 = Array.isArray(spec.life) ? spec.life[0] : 0.6;
+  const life1 = Array.isArray(spec.life) ? spec.life[1] : life0;
+  const avgLife = (life0 + life1) * 0.5;
+  const size0 = spec.size ?? spec.size0 ?? 0.3;
+  const size1 = spec.size1 ?? size0 + (spec.sizeincrease ?? 0);
+  const off = spec.originoffset ?? [0, 0, 0];
+  const oj = spec.originjitter ?? [0, 0, 0];
+  const voff = spec.velocityoffset ?? [0, 0, 0];
+  const vj = spec.velocityjitter ?? [0, 0, 0];
+  const vmul = spec.velocitymultiplier ?? 1;
+  const tintHex = mixHex(spec.color ?? 0xffffff, spec.color2);
+  const additive = !!spec.additive;
+  const bounce = spec.bounce ?? 0;
+  const slide = !!spec.slide;
+  const wind = spec.wind ?? 0;
+  const gravity = spec.gravity ?? 0;
+  const friction = spec.airfriction ?? 0;
+  const spark = spec.orientation === 'spark';
 
   const map = opts.map ?? discTexture();
   const sample = tslTexture(map);
-  const tint = tslColor(preset.color).mul(sample);
+  const tint = tslColor(tintHex).mul(sample);
   const mat = new THREE.MeshBasicNodeMaterial({
     transparent: true,
     depthWrite: false,
     fog: true,
-    blending: preset.additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+    blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
     side: THREE.DoubleSide,
   });
-  // Additive + mix-to-fog-color still adds light through fog. Fade to black instead.
-  if (preset.additive) {
+  if (additive) {
     mat.fog = false;
     mat.colorNode = tint.mul(fogFade);
   } else {
@@ -230,6 +138,7 @@ export const createParticleEmitter = (engine, opts = {}) => {
   const scratch = { x: 0, y: 0, z: 0 };
   const vel = { x: 0, y: 0, z: 0 };
   let emitAcc = 0;
+  let retrigger = 0;
 
   const park = (i) => {
     live[i] = 0;
@@ -251,10 +160,12 @@ export const createParticleEmitter = (engine, opts = {}) => {
       scratch.y = origin.y;
       scratch.z = origin.z;
     }
-    vel.x = 0;
-    vel.y = 0;
-    vel.z = 0;
-    preset.spawn(scratch, vel);
+    scratch.x += off[0] + jitter(oj[0]);
+    scratch.y += off[1] + jitter(oj[1]);
+    scratch.z += off[2] + jitter(oj[2]);
+    vel.x = (voff[0] + jitter(vj[0])) * vmul;
+    vel.y = (voff[1] + jitter(vj[1])) * vmul;
+    vel.z = (voff[2] + jitter(vj[2])) * vmul;
     if (getDrift) {
       const d = getDrift();
       vel.x += d.x;
@@ -268,15 +179,21 @@ export const createParticleEmitter = (engine, opts = {}) => {
     velocities[i * 3 + 1] = vel.y;
     velocities[i * 3 + 2] = vel.z;
     ages[i] = 0;
-    lives[i] = preset.life[0] + Math.random() * (preset.life[1] - preset.life[0]);
+    lives[i] = life0 + Math.random() * (life1 - life0);
     seeds[i] = 0.85 + Math.random() * 0.3;
     spins[i] = Math.random() * Math.PI * 2;
     live[i] = 1;
   };
 
+  const burst = () => {
+    for (let i = 0; i < count; i++) respawn(i);
+    mesh.instanceMatrix.needsUpdate = true;
+  };
+
   dummy.scale.setScalar(0);
   for (let i = 0; i < count; i++) park(i);
-  if (rate > 0) {
+  if (spec.burst) burst();
+  else if (rate > 0) {
     for (let i = 0; i < count; i++) {
       respawn(i);
       ages[i] = Math.random() * lives[i];
@@ -284,11 +201,63 @@ export const createParticleEmitter = (engine, opts = {}) => {
   }
   mesh.instanceMatrix.needsUpdate = true;
 
+  const integrate = (o, v, dt) => {
+    if (gravity) v.y -= GRAVITY * gravity * dt;
+    if (friction) {
+      const drag = friction < 0 ? 1 - friction * dt : Math.max(0, 1 - friction * dt);
+      v.x *= drag;
+      v.y *= drag;
+      v.z *= drag;
+    }
+    if (wind && physics?.fieldAccel) {
+      const a = physics.fieldAccel(o.x, o.y, o.z);
+      v.x += a.ax * wind * dt;
+      v.y += a.ay * wind * dt;
+      v.z += a.az * wind * dt;
+    }
+    const step = Math.hypot(v.x, v.y, v.z) * dt;
+    if (bounce !== 0 && physics?.castRay && step > 1e-4) {
+      const hit = physics.castRay(o.x, o.y, o.z, v.x, v.y, v.z, step + 0.03);
+      if (hit) {
+        if (bounce < 0) return false;
+        o.x = hit.x + hit.nx * 0.02;
+        o.y = hit.y + hit.ny * 0.02;
+        o.z = hit.z + hit.nz * 0.02;
+        const vn = v.x * hit.nx + v.y * hit.ny + v.z * hit.nz;
+        if (slide) {
+          v.x -= hit.nx * vn;
+          v.y -= hit.ny * vn;
+          v.z -= hit.nz * vn;
+        } else {
+          v.x -= 2 * vn * hit.nx;
+          v.y -= 2 * vn * hit.ny;
+          v.z -= 2 * vn * hit.nz;
+          v.x *= bounce;
+          v.y *= bounce;
+          v.z *= bounce;
+        }
+        return true;
+      }
+    }
+    o.x += v.x * dt;
+    o.y += v.y * dt;
+    o.z += v.z * dt;
+    return true;
+  };
+
   engine.onUpdate((dt) => {
     mesh.visible = enabled;
     if (!enabled) return;
     const cap = Math.min(dt, 0.05);
     const camQ = engine.camera.quaternion;
+
+    if (spec.burst && spec.retrigger > 0) {
+      retrigger += cap;
+      if (retrigger >= spec.retrigger) {
+        retrigger = 0;
+        burst();
+      }
+    }
 
     for (let i = 0; i < count; i++) {
       if (!live[i]) continue;
@@ -303,7 +272,10 @@ export const createParticleEmitter = (engine, opts = {}) => {
       vel.x = velocities[i * 3];
       vel.y = velocities[i * 3 + 1];
       vel.z = velocities[i * 3 + 2];
-      preset.integrate(scratch, vel, cap);
+      if (!integrate(scratch, vel, cap)) {
+        park(i);
+        continue;
+      }
       positions[i * 3] = scratch.x;
       positions[i * 3 + 1] = scratch.y;
       positions[i * 3 + 2] = scratch.z;
@@ -312,11 +284,18 @@ export const createParticleEmitter = (engine, opts = {}) => {
       velocities[i * 3 + 2] = vel.z;
       const t = ages[i] / lives[i];
       const envelope = t < 0.12 ? t / 0.12 : t > 0.55 ? 1 - (t - 0.55) / 0.45 : 1;
-      const size = (preset.size0 + t * (preset.size1 - preset.size0)) * seeds[i] * envelope;
+      const size = Math.max(0.01, (size0 + t * (size1 - size0)) * seeds[i] * envelope);
       dummy.position.set(scratch.x, scratch.y, scratch.z);
       dummy.quaternion.copy(camQ);
-      dummy.rotateZ(spins[i]);
-      dummy.scale.setScalar(Math.max(0, size));
+      if (spark) {
+        const spd = Math.hypot(vel.x, vel.y, vel.z);
+        velDir.set(vel.x, vel.y, vel.z).applyQuaternion(camInv.copy(camQ).invert());
+        dummy.rotateZ(Math.atan2(velDir.y, velDir.x));
+        dummy.scale.set(size * (0.45 + spd * 0.14), size * 0.28, 1);
+      } else {
+        dummy.rotateZ(spins[i]);
+        dummy.scale.setScalar(size);
+      }
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
     }
@@ -343,7 +322,8 @@ export const createParticleEmitter = (engine, opts = {}) => {
 
   return {
     mesh,
-    type,
+    type: opts.type ?? 'custom',
+    burst,
     setEnabled(v) {
       enabled = v;
     },
@@ -357,6 +337,31 @@ export const createParticleEmitter = (engine, opts = {}) => {
     },
     get enabled() {
       return enabled;
+    },
+  };
+};
+
+/**
+ * Spawn every row of a named effect.
+ * @param {import('../engine/Engine.js').Engine} engine
+ * @param {string} name
+ * @param {object} [opts]
+ */
+export const createEffect = (engine, name, opts = {}) => {
+  const rows = EFFECTS[name];
+  if (!rows?.length) return { name, emitters: [] };
+  const emitters = rows.map((spec) => createParticleEmitter(engine, { ...opts, spec, type: name }));
+  return {
+    name,
+    emitters,
+    burst() {
+      for (const e of emitters) e.burst();
+    },
+    setEnabled(v) {
+      for (const e of emitters) e.setEnabled(v);
+    },
+    setPosition(x, y, z) {
+      for (const e of emitters) e.setPosition(x, y, z);
     },
   };
 };

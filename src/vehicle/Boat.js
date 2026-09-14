@@ -116,6 +116,7 @@ export const createBoat = (engine, physics, materials, player, input, spawn = {}
   const wake = createParticleEmitter(engine, {
     type: 'wake',
     rate: 0,
+    physics,
     getOrigin: () => {
       const pick = Math.random();
       if (pick < 0.35) local.set(-spec.half[0] * 0.95, 0.02, (Math.random() - 0.25) * spec.half[2]);

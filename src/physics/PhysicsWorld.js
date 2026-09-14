@@ -215,6 +215,56 @@ export const createPhysicsWorld = async (engine, opts = {}) => {
     return { ax, ay, az };
   };
 
+  const rayCast = new Jolt.RRayCast();
+  const raySettings = new Jolt.RayCastSettings();
+  const rayCollector = new Jolt.CastRayClosestHitCollisionCollector();
+  const rayOut = { x: 0, y: 0, z: 0, nx: 0, ny: 1, nz: 0, fraction: 1 };
+
+  const castRay = (ox, oy, oz, dx, dy, dz, maxDist = 1) => {
+    const len = Math.hypot(dx, dy, dz);
+    if (len < 1e-8 || maxDist < 1e-5) return null;
+    const inv = 1 / len;
+    const nx = dx * inv;
+    const ny = dy * inv;
+    const nz = dz * inv;
+    rayCast.mOrigin.Set(ox, oy, oz);
+    rayCast.mDirection.Set(nx * maxDist, ny * maxDist, nz * maxDist);
+    rayCollector.Reset();
+    physicsSystem.GetNarrowPhaseQuery().CastRay(
+      rayCast,
+      raySettings,
+      rayCollector,
+      movingBPFilter,
+      movingLayerFilter,
+      bodyFilter,
+      shapeFilter
+    );
+    if (!rayCollector.HadHit()) return null;
+    const hit = rayCollector.mHit;
+    const f = hit.mFraction;
+    rayOut.x = ox + nx * maxDist * f;
+    rayOut.y = oy + ny * maxDist * f;
+    rayOut.z = oz + nz * maxDist * f;
+    rayOut.fraction = f;
+    rayOut.nx = -nx;
+    rayOut.ny = -ny;
+    rayOut.nz = -nz;
+    try {
+      const body = physicsSystem.GetBodyLockInterfaceNoLock().TryGetBody(hit.mBodyID);
+      if (body) {
+        tmpRVec3.Set(rayOut.x, rayOut.y, rayOut.z);
+        const n = body.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, tmpRVec3);
+        const nl = Math.hypot(n.GetX(), n.GetY(), n.GetZ()) || 1;
+        rayOut.nx = n.GetX() / nl;
+        rayOut.ny = n.GetY() / nl;
+        rayOut.nz = n.GetZ() / nl;
+      }
+    } catch {
+      /* keep inbound inverse */
+    }
+    return rayOut;
+  };
+
   const addStaticBox = (id, position, halfExtents, mesh = null, rotationEuler = null, extras = {}) => {
     const body = createBoxBody(
       position,
@@ -661,6 +711,8 @@ export const createPhysicsWorld = async (engine, opts = {}) => {
     },
     addStaticBox,
     addForceField,
+    fieldAccel,
+    castRay,
     addWaterVolume,
     addStaticConvexHull,
     addStaticMesh,

@@ -26,6 +26,7 @@ import { createTrampoline } from '../../../src/world/Trampoline.js';
 import { createFan } from '../../../src/world/Fan.js';
 import { createVoxelHill } from '../../../src/world/VoxelHill.js';
 import { createStalkerYard } from '../../../src/world/StalkerYard.js';
+import { createParticleGallery } from '../../../src/world/ParticleGallery.js';
 import { applyGrassBlockUVs } from '../../../src/graphics/ProceduralTextures.js';
 
 const DPR_KEY = 'ngin.pixelRatio';
@@ -256,6 +257,7 @@ export const createSandbox = async (canvas, opts = {}) => {
         x: pool.cx,
         y: 0,
         z: pool.cz - pool.innerL / 2 - 1.6,
+        physics,
     });
     createTrampoline(engine, physics, materials, { x: -12, z: 8 });
     createFan(engine, physics, materials, { id: 'fan_up', x: 4, z: 16 });
@@ -268,6 +270,7 @@ export const createSandbox = async (canvas, opts = {}) => {
         reach: 7,
         acceleration: 28,
     });
+    createParticleGallery(engine, physics, materials, { x: -36, z: -20 });
 
     const resize = () => {
         engine.resize(canvas.clientWidth, canvas.clientHeight);

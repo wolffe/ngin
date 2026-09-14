@@ -614,6 +614,7 @@ export const createVehicle = async (engine, physics, materials, player, input, s
     const tireFrom = (wheels, body, radius) => createParticleEmitter(engine, {
         type: 'dust',
         rate: 0,
+        physics,
         getOrigin: () => {
             const rear = Math.random() < 0.7;
             const i = rear ? (Math.random() < 0.5 ? BL : BR) : (Math.random() < 0.5 ? FL : FR);

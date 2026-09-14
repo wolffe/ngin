@@ -26,6 +26,7 @@ export const createFountain = (engine, materials, opts = {}) => {
   const spray = createParticleEmitter(engine, {
     type: 'spray',
     position: { x, y: y + 1.2, z },
+    physics: opts.physics,
   });
 
   return { pipe, spray };
